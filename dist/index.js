@@ -144,8 +144,7 @@ function run() {
         try {
             // const ms: string = core.getInput('milliseconds')
             // core.debug(`Waiting ${ms} milliseconds ...`) // debug is only output if you set the secret `ACTIONS_STEP_DEBUG` to true
-            const token = core.getInput('github-token', { required: true });
-            const octokit = github.getOctokit(token, {});
+            const octokit = github.getOctokit(core.getInput("GITHUB_TOKEN"));
             const repo = Object.assign({}, github.context.repo);
             if (core.getInput("repo")) {
                 const manualRepo = core.getInput("repo").split("/");
@@ -168,8 +167,8 @@ function run() {
             // )
             const req = Object.assign(Object.assign({}, repo), { name: "Deploy Evaluation Site", head_sha, status: "completed", conclusion: "success", output: {
                     title: "Evaluation Report",
-                    // summary: "[View the report on ripley.cloud]("+"https://ci.in.ripley.cloud/logs/public/" +thisRunKey  + "/site"+"/)",
-                    summary: "Just for sanity: one without markdown",
+                    summary: "[View the report on ripley.cloud](" + "https://ci.in.ripley.cloud/logs/public/" + thisRunKey + "/site" + "/)",
+                    // summary: "Just for sanity: one without markdown",
                     text: "w??"
                     // summary: siteInfo.summary,
                     // text: siteInfo.body
