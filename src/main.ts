@@ -111,8 +111,8 @@ export async function buildSite(params: {
     await exec.exec('R -e "rmarkdown::render_site()"', [], { cwd: "site_build" });
     await io.cp("site_build/_site", params.siteResultDir, { recursive: true, force: true });
     return {
-      body: fs.readFileSync("site_build/_site/index.md", "utf-8") ,
-      summary: "Summary tbd"
+      body: "It won't let me dump the whole report here :(", //fs.readFileSync("site_build/_site/index.md", "utf-8") ,
+      summary: "[View the report on ripley.cloud]("+params.site_base_url+"/)"
     }
   } catch (err) {
     console.error("Error generating site!")

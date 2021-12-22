@@ -124,8 +124,8 @@ function buildSite(params) {
             yield exec.exec('R -e "rmarkdown::render_site()"', [], { cwd: "site_build" });
             yield io.cp("site_build/_site", params.siteResultDir, { recursive: true, force: true });
             return {
-                body: fs.readFileSync("site_build/_site/index.md", "utf-8"),
-                summary: "Summary tbd"
+                body: "It won't let me dump the whole report here :(",
+                summary: "[View the report on ripley.cloud](" + params.site_base_url + "/)"
             };
         }
         catch (err) {
