@@ -24,6 +24,27 @@ async function run(): Promise<void> {
       ...repo,
       name: "Testing checks API",
       head_sha,
+      status: "completed",
+      conclusion: "success",
+      output: {
+        title: "We ran a bunch of checks",
+        summary: "#This is some markdown\n\nAnd it has mutliple lines!",
+        text: "##This is the summary text..."
+      },
+      images: [{
+        image_url: "https://ci.in.ripley.cloud/logs/public/jon-bell/JQF-dev/596758abe2ab1cdadf890451ccf1025c1d9aca41/Smoke%20test%20evaluation%20-%2010%20minutes%2c%205%20trials/1608537067/1/site/index_files/figure-html/unnamed-chunk-3-1.png",
+        alt: "Ant branch probes over time",
+        caption: "Ant: Branch probes over time."
+      },{
+        image_url: "https://ci.in.ripley.cloud/logs/public/jon-bell/JQF-dev/596758abe2ab1cdadf890451ccf1025c1d9aca41/Smoke%20test%20evaluation%20-%2010%20minutes%2c%205%20trials/1608537067/1/site/index_files/figure-html/unnamed-chunk-6-1.png",
+        alt: "Ant inputs executed over time",
+        caption: "Ant: Inputs executed over time."
+      }],
+      actions: [{
+        label: "Rebuild site",
+        descripton: "Trigger this site to be rebuilt from the same source data, but using the most recent site action",
+        identifier: "rebuild-site"
+      }]
     }
     const resp = await octokit.rest.checks.create(req);
     console.log(JSON.stringify(resp, null, 2));
