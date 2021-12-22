@@ -149,7 +149,7 @@ export async function run(): Promise<void> {
     const siteInfo = await buildSite({
       comparisons: comps, artifacts_base_url: "https://ci.in.ripley.cloud/logs/",
       siteResultDir: "/ci-logs/public/" + thisRunKey + "/site",
-      site_base_url: "https://ci.in.ripley.cloud/logs/public/" +thisRunKey  + "/site"
+      site_base_url: "https://ci.in.ripley.cloud/logs/public/" +thisRunKey  + "/site/"
     }
     )
 

@@ -162,7 +162,7 @@ function run() {
             const siteInfo = yield buildSite({
                 comparisons: comps, artifacts_base_url: "https://ci.in.ripley.cloud/logs/",
                 siteResultDir: "/ci-logs/public/" + thisRunKey + "/site",
-                site_base_url: "https://ci.in.ripley.cloud/logs/public/" + thisRunKey + "/site"
+                site_base_url: "https://ci.in.ripley.cloud/logs/public/" + thisRunKey + "/site/"
             });
             const req = Object.assign(Object.assign({}, repo), { name: "Deploy Evaluation Site", head_sha, status: "completed", conclusion: "success", details_url: "https://ci.in.ripley.cloud/logs/public/" + thisRunKey + "/site" + "/", output: {
                     title: "Evaluation Report",
