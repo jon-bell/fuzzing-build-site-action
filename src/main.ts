@@ -146,12 +146,12 @@ export async function run(): Promise<void> {
     const comps = JSON.parse(core.getInput("comparisons")) as ComparisonsType 
     const thisRunKey = comps.thisRun.repository.full_name + "/" +
     comps.thisRun.head_sha + "/" + comps.thisRun.name + "/" + comps.thisRun.id + "/" + comps.thisRun.run_attempt;
-    // const siteInfo = await buildSite({
-    //   comparisons: comps, artifacts_base_url: "https://ci.in.ripley.cloud/logs/",
-    //   siteResultDir: "/ci-logs/public/" + thisRunKey,
-    //   site_base_url: "https://ci.in.ripley.cloud/logs/public/" +thisRunKey  + "/site"
-    // }
-    // )
+    const siteInfo = await buildSite({
+      comparisons: comps, artifacts_base_url: "https://ci.in.ripley.cloud/logs/",
+      siteResultDir: "/ci-logs/public/" + thisRunKey,
+      site_base_url: "https://ci.in.ripley.cloud/logs/public/" +thisRunKey  + "/site"
+    }
+    )
 
     const req = {
       ...repo,
@@ -161,11 +161,11 @@ export async function run(): Promise<void> {
       conclusion: "success",
       output: {
         title: "Evaluation Report",
-        summary: "[View the report on ripley.cloud]("+"https://ci.in.ripley.cloud/logs/public/" +thisRunKey  + "/site"+"/)",
+        // summary: "[View the report on ripley.cloud]("+"https://ci.in.ripley.cloud/logs/public/" +thisRunKey  + "/site"+"/)",
         // summary: "Just for sanity: one without markdown",
-        text: "w??"
-        // summary: siteInfo.summary,
-        // text: siteInfo.body
+        // text: "w??"
+        summary: siteInfo.summary,
+        text: siteInfo.body
         // summary: "Some summary",
         // text: thisRunKey
       },
