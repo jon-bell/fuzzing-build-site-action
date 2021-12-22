@@ -16,7 +16,9 @@ jobs:
       - run: |
           npm run all
   test: # make sure the action works on a clean machine without building
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
+    env:
+      RENV_PATHS_ROOT: /ci-logs/renv
     steps:
       - uses: actions/checkout@v2
       - name: Fetch workflow runs to compare to
