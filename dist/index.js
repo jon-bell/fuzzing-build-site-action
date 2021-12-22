@@ -144,7 +144,8 @@ function run() {
         try {
             // const ms: string = core.getInput('milliseconds')
             // core.debug(`Waiting ${ms} milliseconds ...`) // debug is only output if you set the secret `ACTIONS_STEP_DEBUG` to true
-            const octokit = github.getOctokit(core.getInput("GITHUB_TOKEN"));
+            const token = core.getInput('github-token', { required: true });
+            const octokit = github.getOctokit(token, {});
             const repo = Object.assign({}, github.context.repo);
             if (core.getInput("repo")) {
                 const manualRepo = core.getInput("repo").split("/");
