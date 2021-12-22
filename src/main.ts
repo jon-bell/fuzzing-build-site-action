@@ -163,10 +163,10 @@ export async function run(): Promise<void> {
       conclusion: "success",
       output: {
         title: "Evaluation Report",
-        // summary: siteInfo.summary,
-        // text: siteInfo.body
-        summary: "Some summary",
-        text: thisRunKey
+        summary: siteInfo.summary,
+        text: siteInfo.body
+        // summary: "Some summary",
+        // text: thisRunKey
       },
       // actions: [{
       //   label: "Rebuild site",

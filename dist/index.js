@@ -167,10 +167,10 @@ function run() {
             });
             const req = Object.assign(Object.assign({}, repo), { name: "Deploy Evaluation Site", head_sha, status: "completed", conclusion: "success", output: {
                     title: "Evaluation Report",
-                    // summary: siteInfo.summary,
-                    // text: siteInfo.body
-                    summary: "Some summary",
-                    text: thisRunKey
+                    summary: siteInfo.summary,
+                    text: siteInfo.body
+                    // summary: "Some summary",
+                    // text: thisRunKey
                 } });
             console.log("Request:");
             console.log(JSON.stringify(req, null, 2));
