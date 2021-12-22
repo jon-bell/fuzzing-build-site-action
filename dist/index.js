@@ -161,10 +161,10 @@ function run() {
                 comps.thisRun.head_sha + "/" + comps.thisRun.name + "/" + comps.thisRun.id + "/" + comps.thisRun.run_attempt;
             const siteInfo = yield buildSite({
                 comparisons: comps, artifacts_base_url: "https://ci.in.ripley.cloud/logs/",
-                siteResultDir: "/ci-logs/public/" + thisRunKey,
+                siteResultDir: "/ci-logs/public/" + thisRunKey + "/site",
                 site_base_url: "https://ci.in.ripley.cloud/logs/public/" + thisRunKey + "/site"
             });
-            const req = Object.assign(Object.assign({}, repo), { name: "Deploy Evaluation Site", head_sha, status: "completed", conclusion: "success", output: {
+            const req = Object.assign(Object.assign({}, repo), { name: "Deploy Evaluation Site", head_sha, status: "completed", conclusion: "success", details_url: "https://ci.in.ripley.cloud/logs/public/" + thisRunKey + "/site" + "/", output: {
                     title: "Evaluation Report",
                     // summary: "[View the report on ripley.cloud]("+"https://ci.in.ripley.cloud/logs/public/" +thisRunKey  + "/site"+"/)",
                     // summary: "Just for sanity: one without markdown",

@@ -148,7 +148,7 @@ export async function run(): Promise<void> {
     comps.thisRun.head_sha + "/" + comps.thisRun.name + "/" + comps.thisRun.id + "/" + comps.thisRun.run_attempt;
     const siteInfo = await buildSite({
       comparisons: comps, artifacts_base_url: "https://ci.in.ripley.cloud/logs/",
-      siteResultDir: "/ci-logs/public/" + thisRunKey,
+      siteResultDir: "/ci-logs/public/" + thisRunKey + "/site",
       site_base_url: "https://ci.in.ripley.cloud/logs/public/" +thisRunKey  + "/site"
     }
     )
@@ -159,6 +159,7 @@ export async function run(): Promise<void> {
       head_sha,
       status: "completed",
       conclusion: "success",
+      details_url: "https://ci.in.ripley.cloud/logs/public/" +thisRunKey  + "/site"+"/",
       output: {
         title: "Evaluation Report",
         // summary: "[View the report on ripley.cloud]("+"https://ci.in.ripley.cloud/logs/public/" +thisRunKey  + "/site"+"/)",
@@ -169,11 +170,6 @@ export async function run(): Promise<void> {
         // summary: "Some summary",
         // text: thisRunKey
       },
-      // actions: [{
-      //   label: "Rebuild site",
-      //   description: "Trigger this site to be rebuilt",
-      //   identifier: "rebuild-site"
-      // }]
     }
     console.log("Request:")
     console.log(JSON.stringify(req,null,2));
