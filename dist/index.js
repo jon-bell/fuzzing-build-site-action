@@ -67,7 +67,7 @@ function run() {
                         caption: "Ant: Inputs executed over time."
                     }], actions: [{
                         label: "Rebuild site",
-                        descripton: "Trigger this site to be rebuilt from the same source data, but using the most recent site action",
+                        description: "Trigger this site to be rebuilt from the same source data, but using the most recent site action",
                         identifier: "rebuild-site"
                     }] });
             const resp = yield octokit.rest.checks.create(req);

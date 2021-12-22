@@ -42,7 +42,7 @@ async function run(): Promise<void> {
       }],
       actions: [{
         label: "Rebuild site",
-        descripton: "Trigger this site to be rebuilt from the same source data, but using the most recent site action",
+        description: "Trigger this site to be rebuilt from the same source data, but using the most recent site action",
         identifier: "rebuild-site"
       }]
     }
