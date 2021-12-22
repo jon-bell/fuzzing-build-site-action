@@ -183,7 +183,9 @@ function run() {
                 site_base_url: "https://ci.in.ripley.cloud/logs/public/" + thisRunKey + "/site/",
                 head_sha: head_sha,
             });
-            const req = Object.assign(Object.assign({}, repo), { name: "Deploy Evaluation Site", head_sha, status: "completed", conclusion: "success", details_url: "https://ci.in.ripley.cloud/logs/public/" + thisRunKey + "/site" + "/", output: {
+            const thisRunKeyEncoded = comps.thisRun.repository.full_name + "/" +
+                comps.thisRun.head_sha + "/" + encodeURIComponent(comps.thisRun.name || "") + "/" + comps.thisRun.id + "/" + comps.thisRun.run_attempt;
+            const req = Object.assign(Object.assign({}, repo), { name: "Deploy Evaluation Site", head_sha, status: "completed", conclusion: "success", details_url: "https://ci.in.ripley.cloud/logs/public/" + thisRunKeyEncoded + "/site" + "/", output: {
                     title: "Evaluation Report",
                     summary: siteInfo.body + "\n\n[View the report on ripley.cloud](https://ci.in.ripley.cloud/logs/public/" + thisRunKey + "/site" + "/)"
                 } });
