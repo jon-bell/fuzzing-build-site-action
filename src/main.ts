@@ -129,8 +129,6 @@ export async function run(): Promise<void> {
     // const ms: string = core.getInput('milliseconds')
     // core.debug(`Waiting ${ms} milliseconds ...`) // debug is only output if you set the secret `ACTIONS_STEP_DEBUG` to true
 
-    console.log(core.getInput("GITHUB_TOKEN"))
-
     const octokit = github.getOctokit(core.getInput("GITHUB_TOKEN"));
     const repo = {
       ...github.context.repo,
@@ -163,7 +161,8 @@ export async function run(): Promise<void> {
       conclusion: "success",
       output: {
         title: "Evaluation Report",
-        summary: "[View the report on ripley.cloud]("+"https://ci.in.ripley.cloud/logs/public/" +thisRunKey  + "/site"+"/)",
+        // summary: "[View the report on ripley.cloud]("+"https://ci.in.ripley.cloud/logs/public/" +thisRunKey  + "/site"+"/)",
+        summary: "Just for sanity: one without markdown",
         text: "w??"
         // summary: siteInfo.summary,
         // text: siteInfo.body
