@@ -15,6 +15,9 @@ inputs:
   #   description: 'Names of branches to include in the query'
   #   required: true
   #   default: 'main'
+  sha_to_post_site_to:
+    description: 'Where the check run goes'
+    required: false
   benchmarks:
     description: 'Benchmark targets to include in the report'
     required: false

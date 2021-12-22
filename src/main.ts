@@ -34,17 +34,25 @@ function wfRunToMdDescription(refName: string, wfRun: WorkflowRun, isThis?: bool
     "   * Last commit " + wfRun.head_commit?.timestamp + " by " + wfRun.head_commit?.author?.name + '\n' +
     "   * [Workflow Results](" + wfRun.html_url + ')\n'
 }
+async function haveResultsForWorkflowRun(wfRun: WorkflowRun) {
+  const parentDir = await getPathToAritfacts(wfRun);
+  for (let bm of benchmarks) {
+    bm = bm.trim();
+    if (!fs.existsSync(parentDir + "/" + bm + "_jacoco_summary.json")) {
+      console.log("Error: couldn't find jacoco results for " + bm + " in " + parentDir + " bailing!");
+      return false;
+    }
+  }
+  return true;
+}
 export async function buildSite(params: {
   head_sha?: string,
-  head_ref?: string,
-  head_html_url?: string,
-  head_results_dir?: string,
   site_base_url: string,
   artifacts_base_url: string,
   comparisons: ComparisonsType,
   siteResultDir: string
-}): Promise<{body: string, summary: string}> {
-  const { comparisons, head_sha, head_ref } = params;
+}): Promise<{ body: string, summary: string }> {
+  const { comparisons, head_sha } = params;
   let workflowName = "Evaluation Run";
   if (head_sha && comparisons.thisRun.name) {
     workflowName = comparisons.thisRun.name;
@@ -64,19 +72,24 @@ export async function buildSite(params: {
   //Build report header
   let reportHeader;
   const dataDirs = [];
-  if (comparisons.byBranch.length > 1 || (comparisons.byBranch.length == 1 && head_sha)) {
+  let includeHeadInResults = false;
+  includeHeadInResults = await haveResultsForWorkflowRun(comparisons.thisRun);
+  if (comparisons.byBranch.length > 1 || (comparisons.byBranch.length == 1 && includeHeadInResults)) {
     reportHeader = 'Configurations evalauted:\n\n';
   }
   else {
     reportHeader = 'Configuration evaluated:\n\n';
   }
-  if (head_ref) {
-    reportHeader += wfRunToMdDescription(head_ref, comparisons.thisRun, true)
+  if (includeHeadInResults && head_sha) {
+    reportHeader += wfRunToMdDescription(comparisons.thisRun.head_branch || "?", comparisons.thisRun, true)
+    dataDirs.push({ "name": head_sha.substring(0, 6), "path": await getPathToAritfacts(comparisons.thisRun) });
   }
   for (let branchRun of comparisons.byBranch) {
     for (let wfRun of branchRun.workflow_runs) {
-      reportHeader += wfRunToMdDescription(branchRun.name, wfRun);
-      dataDirs.push({ "name": branchRun.name, "path": await getPathToAritfacts(wfRun) });
+      if (await haveResultsForWorkflowRun(wfRun)) {
+        reportHeader += wfRunToMdDescription(branchRun.name, wfRun);
+        dataDirs.push({ "name": branchRun.name, "path": await getPathToAritfacts(wfRun) });
+      }
     }
   }
 
@@ -111,13 +124,13 @@ export async function buildSite(params: {
     await exec.exec('R -e "rmarkdown::render_site()"', [], { cwd: "site_build" });
     await io.cp("site_build/_site", params.siteResultDir, { recursive: true, force: true });
     return {
-      body: fs.readFileSync("site_build/_site/index.md", "utf-8") ,
+      body: fs.readFileSync("site_build/_site/index.md", "utf-8"),
       summary: "Summary tbd"
     }
   } catch (err) {
     console.error("Error generating site!")
     console.trace(err)
-    return{
+    return {
       body: "Error generating site",
       summary: "Error generating site, see logs for details"
     }
@@ -143,13 +156,14 @@ export async function run(): Promise<void> {
       head_sha = core.getInput("head_sha");
     }
     // TODO refactor that action into this one?
-    const comps = JSON.parse(core.getInput("comparisons")) as ComparisonsType 
+    const comps = JSON.parse(core.getInput("comparisons")) as ComparisonsType
     const thisRunKey = comps.thisRun.repository.full_name + "/" +
-    comps.thisRun.head_sha + "/" + comps.thisRun.name + "/" + comps.thisRun.id + "/" + comps.thisRun.run_attempt;
+      comps.thisRun.head_sha + "/" + comps.thisRun.name + "/" + comps.thisRun.id + "/" + comps.thisRun.run_attempt;
     const siteInfo = await buildSite({
       comparisons: comps, artifacts_base_url: "https://ci.in.ripley.cloud/logs/",
       siteResultDir: "/ci-logs/public/" + thisRunKey + "/site",
-      site_base_url: "https://ci.in.ripley.cloud/logs/public/" +thisRunKey  + "/site/"
+      site_base_url: "https://ci.in.ripley.cloud/logs/public/" + thisRunKey + "/site/",
+      head_sha: head_sha,
     }
     )
 
@@ -159,21 +173,14 @@ export async function run(): Promise<void> {
       head_sha,
       status: "completed",
       conclusion: "success",
-      details_url: "https://ci.in.ripley.cloud/logs/public/" +thisRunKey  + "/site"+"/",
+      details_url: "https://ci.in.ripley.cloud/logs/public/" + thisRunKey + "/site" + "/",
       output: {
         title: "Evaluation Report",
-        // summary: "[View the report on ripley.cloud]("+"https://ci.in.ripley.cloud/logs/public/" +thisRunKey  + "/site"+"/)",
-        // summary: "Just for sanity: one without markdown",
-        // text: "w??"
-        // summary: siteInfo.summary,
-        // text: siteInfo.body
-        summary: siteInfo.body
-        // summary: "Some summary",
-        // text: thisRunKey
+        summary: siteInfo.body + "\n\n[View the report on ripley.cloud](https://ci.in.ripley.cloud/logs/public/" + thisRunKey + "/site" + "/)"
       },
     }
     console.log("Request:")
-    console.log(JSON.stringify(req,null,2));
+    console.log(JSON.stringify(req, null, 2));
     const resp = await octokit.rest.checks.create(req);
     console.log(JSON.stringify(resp, null, 2));
 

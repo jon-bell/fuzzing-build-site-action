@@ -61,9 +61,22 @@ function wfRunToMdDescription(refName, wfRun, isThis) {
         "   * Last commit " + ((_a = wfRun.head_commit) === null || _a === void 0 ? void 0 : _a.timestamp) + " by " + ((_c = (_b = wfRun.head_commit) === null || _b === void 0 ? void 0 : _b.author) === null || _c === void 0 ? void 0 : _c.name) + '\n' +
         "   * [Workflow Results](" + wfRun.html_url + ')\n';
 }
+function haveResultsForWorkflowRun(wfRun) {
+    return __awaiter(this, void 0, void 0, function* () {
+        const parentDir = yield getPathToAritfacts(wfRun);
+        for (let bm of benchmarks) {
+            bm = bm.trim();
+            if (!fs.existsSync(parentDir + "/" + bm + "_jacoco_summary.json")) {
+                console.log("Error: couldn't find jacoco results for " + bm + " in " + parentDir + " bailing!");
+                return false;
+            }
+        }
+        return true;
+    });
+}
 function buildSite(params) {
     return __awaiter(this, void 0, void 0, function* () {
-        const { comparisons, head_sha, head_ref } = params;
+        const { comparisons, head_sha } = params;
         let workflowName = "Evaluation Run";
         if (head_sha && comparisons.thisRun.name) {
             workflowName = comparisons.thisRun.name;
@@ -82,19 +95,24 @@ function buildSite(params) {
         //Build report header
         let reportHeader;
         const dataDirs = [];
-        if (comparisons.byBranch.length > 1 || (comparisons.byBranch.length == 1 && head_sha)) {
+        let includeHeadInResults = false;
+        includeHeadInResults = yield haveResultsForWorkflowRun(comparisons.thisRun);
+        if (comparisons.byBranch.length > 1 || (comparisons.byBranch.length == 1 && includeHeadInResults)) {
             reportHeader = 'Configurations evalauted:\n\n';
         }
         else {
             reportHeader = 'Configuration evaluated:\n\n';
         }
-        if (head_ref) {
-            reportHeader += wfRunToMdDescription(head_ref, comparisons.thisRun, true);
+        if (includeHeadInResults && head_sha) {
+            reportHeader += wfRunToMdDescription(comparisons.thisRun.head_branch || "?", comparisons.thisRun, true);
+            dataDirs.push({ "name": head_sha.substring(0, 6), "path": yield getPathToAritfacts(comparisons.thisRun) });
         }
         for (let branchRun of comparisons.byBranch) {
             for (let wfRun of branchRun.workflow_runs) {
-                reportHeader += wfRunToMdDescription(branchRun.name, wfRun);
-                dataDirs.push({ "name": branchRun.name, "path": yield getPathToAritfacts(wfRun) });
+                if (yield haveResultsForWorkflowRun(wfRun)) {
+                    reportHeader += wfRunToMdDescription(branchRun.name, wfRun);
+                    dataDirs.push({ "name": branchRun.name, "path": yield getPathToAritfacts(wfRun) });
+                }
             }
         }
         //Copy the site
@@ -162,18 +180,12 @@ function run() {
             const siteInfo = yield buildSite({
                 comparisons: comps, artifacts_base_url: "https://ci.in.ripley.cloud/logs/",
                 siteResultDir: "/ci-logs/public/" + thisRunKey + "/site",
-                site_base_url: "https://ci.in.ripley.cloud/logs/public/" + thisRunKey + "/site/"
+                site_base_url: "https://ci.in.ripley.cloud/logs/public/" + thisRunKey + "/site/",
+                head_sha: head_sha,
             });
             const req = Object.assign(Object.assign({}, repo), { name: "Deploy Evaluation Site", head_sha, status: "completed", conclusion: "success", details_url: "https://ci.in.ripley.cloud/logs/public/" + thisRunKey + "/site" + "/", output: {
                     title: "Evaluation Report",
-                    // summary: "[View the report on ripley.cloud]("+"https://ci.in.ripley.cloud/logs/public/" +thisRunKey  + "/site"+"/)",
-                    // summary: "Just for sanity: one without markdown",
-                    // text: "w??"
-                    // summary: siteInfo.summary,
-                    // text: siteInfo.body
-                    summary: siteInfo.body
-                    // summary: "Some summary",
-                    // text: thisRunKey
+                    summary: siteInfo.body + "\n\n[View the report on ripley.cloud](https://ci.in.ripley.cloud/logs/public/" + thisRunKey + "/site" + "/)"
                 } });
             console.log("Request:");
             console.log(JSON.stringify(req, null, 2));
