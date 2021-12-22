@@ -2,19 +2,19 @@ name: 'Your name here'
 description: 'Provide a description here'
 author: 'Your name or organization here'
 inputs:
-  repo:
-    descripton: 'Repo to query (e.g. jon-bell/jqf), defaults to the current'
-    required: false
-  head_sha:
-    description: 'SHA to create check run for, defaults to the head sha triggering this action'
-    required: false
-  workflow_id:
-    description: 'Workflow ID to query, defaults to the workflow triggering this action'
-    required: false
-  include_branches:  
-    description: 'Names of branches to include in the query'
-    required: true
-    default: 'main'
+  # repo:
+  #   descripton: 'Repo to query (e.g. jon-bell/jqf), defaults to the current'
+  #   required: false
+  # head_sha:
+  #   description: 'SHA to create check run for, defaults to the head sha triggering this action'
+  #   required: false
+  # workflow_id:
+  #   description: 'Workflow ID to query, defaults to the workflow triggering this action'
+  #   required: false
+  # include_branches:  
+  #   description: 'Names of branches to include in the query'
+  #   required: true
+  #   default: 'main'
   benchmarks:
     description: 'Benchmark targets to include in the report'
     required: false

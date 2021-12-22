@@ -33,4 +33,3 @@ jobs:
         with:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           comparisons: ${{ steps.fetch-compare.outputs.workflow_runs }} 
-          milliseconds: 1000
