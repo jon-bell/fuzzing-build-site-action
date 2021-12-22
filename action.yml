@@ -6,6 +6,15 @@ inputs:
     required: true
     description: 'input description here'
     default: 'default value if applicable'
+  repo:
+    descripton: 'Repo to query (e.g. jon-bell/jqf), defaults to the current'
+    required: false
+  head_sha:
+    description: 'SHA to create check run for, defaults to the head sha triggering this action'
+    required: false
+  GITHUB_TOKEN:
+    required: true
+    description: 'Pass the GITHUB_TOKEN'
 runs:
   using: 'node12'
   main: 'dist/index.js'
