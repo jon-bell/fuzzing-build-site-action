@@ -165,8 +165,9 @@ export async function run(): Promise<void> {
         // summary: "[View the report on ripley.cloud]("+"https://ci.in.ripley.cloud/logs/public/" +thisRunKey  + "/site"+"/)",
         // summary: "Just for sanity: one without markdown",
         // text: "w??"
-        summary: siteInfo.summary,
-        text: siteInfo.body
+        // summary: siteInfo.summary,
+        // text: siteInfo.body
+        summary: siteInfo.body
         // summary: "Some summary",
         // text: thisRunKey
       },
