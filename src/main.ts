@@ -148,12 +148,12 @@ export async function run(): Promise<void> {
     const comps = JSON.parse(core.getInput("comparisons")) as ComparisonsType 
     const thisRunKey = comps.thisRun.repository.full_name + "/" +
     comps.thisRun.head_sha + "/" + comps.thisRun.name + "/" + comps.thisRun.id + "/" + comps.thisRun.run_attempt;
-    // const siteInfo = await buildSite({
-    //   comparisons: comps, artifacts_base_url: "https://ci.in.ripley.cloud/logs/",
-    //   siteResultDir: "/ci-logs/public/" + thisRunKey,
-    //   site_base_url: "https://ci.in.ripley.cloud/logs/public/" +thisRunKey  + "/site"
-    // }
-    // )
+    const siteInfo = await buildSite({
+      comparisons: comps, artifacts_base_url: "https://ci.in.ripley.cloud/logs/",
+      siteResultDir: "/ci-logs/public/" + thisRunKey,
+      site_base_url: "https://ci.in.ripley.cloud/logs/public/" +thisRunKey  + "/site"
+    }
+    )
 
     const req = {
       ...repo,
