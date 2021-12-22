@@ -74,6 +74,12 @@ function haveResultsForWorkflowRun(wfRun) {
         return true;
     });
 }
+function trim(str, len) {
+    if (str.length > len) {
+        const truncatedMessage = "... [Truncated, view full report in artifact]";
+        return str.substring(0, len - str.length - truncatedMessage.length) + truncatedMessage;
+    }
+}
 function buildSite(params) {
     return __awaiter(this, void 0, void 0, function* () {
         const { comparisons, head_sha } = params;
@@ -187,7 +193,7 @@ function run() {
                 comps.thisRun.head_sha + "/" + encodeURIComponent(comps.thisRun.name || "") + "/" + comps.thisRun.id + "/" + comps.thisRun.run_attempt;
             const req = Object.assign(Object.assign({}, repo), { name: "Deploy Evaluation Site", head_sha, status: "completed", conclusion: "success", details_url: "https://ci.in.ripley.cloud/logs/public/" + thisRunKeyEncoded + "/site" + "/", output: {
                     title: "Evaluation Report",
-                    summary: siteInfo.body + "\n\n[View the report on ripley.cloud](https://ci.in.ripley.cloud/logs/public/" + thisRunKey + "/site" + "/)"
+                    summary: trim("[View the report on ripley.cloud](https://ci.in.ripley.cloud/logs/public/" + thisRunKey + "/site" + "/)\n\n" + siteInfo.body, 65534)
                 } });
             console.log("Request:");
             console.log(JSON.stringify(req, null, 2));
