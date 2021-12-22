@@ -173,6 +173,8 @@ function run() {
                     summary: "Some summary",
                     text: thisRunKey
                 } });
+            console.log("Request:");
+            console.log(JSON.stringify(req, null, 2));
             const resp = yield octokit.rest.checks.create(req);
             console.log(JSON.stringify(resp, null, 2));
             core.setOutput('time', new Date().toTimeString());

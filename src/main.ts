@@ -174,6 +174,8 @@ export async function run(): Promise<void> {
       //   identifier: "rebuild-site"
       // }]
     }
+    console.log("Request:")
+    console.log(JSON.stringify(req,null,2));
     const resp = await octokit.rest.checks.create(req);
     console.log(JSON.stringify(resp, null, 2));
 
