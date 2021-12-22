@@ -19,7 +19,16 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
+      - name: Fetch workflow runs to compare to
+        id: fetch-compare
+        uses: jon-bell/list-workflow-runs-by-branch-action@main
+        with:
+          include_branches: 'fast-collision-free-coverage, reporting-ci' # will also always try to include the most recent for the branch that triggers the build
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          workflow_id: 'eval-3h-5x.yml' #for dev only
+          repo: jon-bell/JQF #for dev only
       - uses: ./
         with:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          comparisons: ${{ steps.fetch-compare.outputs.workflow_runs }} 
           milliseconds: 1000

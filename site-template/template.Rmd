@@ -1,0 +1,178 @@
+---
+title: "Fuzzer Evaluation - TEMPLATE THAT SHOULD NOT BE RENDERED DIRECTLY EXCEPT FOR DEV"
+output: html_document
+params:
+  benchmark: 'ant'
+  artifactURL: "https://ci.in.ripley.cloud/logs"
+  dataDirs: '{"dataDirs": [{"path": "/ci-logs/public/jon-bell/JQF/c6e3b2417931d479104f59065da8ea85c7d07f31/Smoke test evaluation - 10 minutes, 5 trials/1604218427/2/artifacts", "name": "dummy-debug-ignore-this"}, {"name": "fast-collision-free-coverage", "path": "/ci-logs/public/jon-bell/JQF/cb70af65d5c0ac1a084c318c2b7260d6710d4ce9/Smoke test evaluation - 10 minutes, 5 trials/1607328380/1/artifacts"}, {"name": "reporting-ci", "path": "/ci-logs/public/jon-bell/JQF/8468ed5f28da5c3d79f85a1a0bcc8d8a8e7ccbd9/Smoke test evaluation - 10 minutes, 5 trials/1604384300/1/artifacts"}]}'
+  baseDir: "/ci-logs/"
+---
+
+```{r st1, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyr)
+library(purrr)
+library(tibble)
+library(readr)
+library(dplyr)
+library(stringr)
+library(ggplot2)
+library(knitr)
+library(rjson)
+library(kableExtra)
+```
+
+# %TARGET%
+```{r %TARGET%-setup, include=FALSE}
+linkToArtifactFile <- function(pathToFile, fileName, linkName){
+        paste0("[",linkName,"](",ARTIFACTS_BASE_URL, substring(pathToFile,nchar(params$baseDir)),"/",fileName,")")
+}
+readResultFile <- function(file, config) {
+  read_csv(file) %>%
+          add_column(filename = file, config=config) %>%
+          extract(filename, into = c("path","filename"), regex = "(.*)/([^/]*_plot_data.*)") %>%
+          extract(filename, into = c("index"),".*_plot_data_(\\d+)",remove=FALSE)%>%
+          mutate(
+                  campaignSecs = `# unix_time` - min(`# unix_time`))
+}
+
+
+readExperimentResults <- function(dataDir) {
+  list.files(path=dataDir$path, recursive = F,
+             pattern=paste0(params$benchmark,"_plot_data_*"),
+             full.names = TRUE) %>% map_df(~readResultFile(.,dataDir$name)) %>%
+          group_by(campaignSecs, config, path, filename, index) %>%
+          summarise(cov = first(paths_total),
+                    invalid_inputs = first(invalid_inputs),
+                    valid_inputs = first(valid_inputs))
+}
+
+# Load plot_data
+configs <- fromJSON(params$dataDirs)$dataDirs
+data <- map_dfr(configs, readExperimentResults)
+byFile <- data %>%
+        mutate(campaignMins = floor(campaignSecs / 60)) %>%
+        complete(config, filename, campaignMins) %>%
+        fill(cov) %>%
+        group_by(config, filename, index)
+
+summary <- byFile %>%
+        group_by(campaignMins, config) %>%
+        summarise(
+                cov.avg = mean(cov),
+                cov.min = min(cov),
+                cov.max = max(cov),
+                inputs.avg = mean(invalid_inputs + valid_inputs),
+                inputs.min = min(invalid_inputs + valid_inputs),
+                inputs.max = max(invalid_inputs + valid_inputs)
+        )
+
+# Load JaCoCo branch data
+readJaCoCo <- function(dataDir){
+  jsonFile <- paste0(dataDir$path,"/",params$benchmark,"_jacoco_summary.json")
+  if(file.exists(jsonFile)){
+    as.data.frame(fromJSON(file=jsonFile)) %>% add_column(config=dataDir$name)
+  } else{
+    data.frame(config=c(dataDir$name),branchesCovered=c(NA),branchesTotal=c(NA))
+  }
+}
+
+
+jacoco <- map_dfr(configs, readJaCoCo)
+```
+
+## Branch Probes Over Time
+
+```{r %TARGET%-fig-branches-over-time, echo = FALSE}
+ggplot(
+        data = summary,
+        aes(x = campaignMins, y = cov.avg, group = config, color = config)
+) +
+        geom_ribbon(aes(ymin = cov.min, ymax = cov.max, group = config, fill = config),
+                    linetype = 0, alpha = 0.3) +
+        geom_line(size = 0.35) +
+        theme_linedraw() +
+        xlab("Campaign Time (minutes)") +
+        ylab("Branch Probes Covered") +
+        theme(text = element_text(size = 6), axis.line = element_line(colour = "black", size = 0.01)) 
+ggsave("%TARGET%-branches-over-time.pdf", device="pdf")
+```
+
+[Download this graph as PDF](%SITE_BASE_URL%%TARGET%-branches-over-time.pdf)
+
+### Final branch coverage by fuzzing config
+```{r %TARGET%-table-branches-by-config, echo = FALSE, message = FALSE, results='asis'}
+summaryCoverageTable <- byFile %>%
+        group_by(filename, path, config) %>%
+        summarise(probesHit = max(cov)) %>%
+        group_by(config, path) %>%
+        summarise(Average.probesHit = mean(probesHit), SD.probesHit = sd(probesHit)) %>%
+        ungroup()%>%
+        left_join(jacoco,by="config") %>%
+        mutate(
+                config=linkToArtifactFile(path, paste0("jacoco-",params$benchmark,"/"), config)
+                ) %>%
+        rename(Configuration=config, JaCoCo.Br.Cov=branchesCovered,JaCoCo.Br.Tot=branchesTotal)  %>%
+        relocate(JaCoCo.Br.Cov,.before=JaCoCo.Br.Tot) %>% select(-path)
+kable(summaryCoverageTable, format="simple", booktabs=TRUE, digits=0, format.args = list(big.mark = ",",
+                                                                        scientific = FALSE)) 
+```
+
+### Final branch coverage by fuzzing run
+```{r %TARGET%-table-branches-by-run, echo = FALSE,  results='asis'}
+branchCovByFuzzingRun <- byFile %>%
+        group_by(config, path, filename) %>%
+        summarise(`Probes Hit` = max(cov)) %>%
+        mutate(filename=linkToArtifactFile(path, filename, filename)) %>% ungroup() %>% select(-path)
+
+kable(branchCovByFuzzingRun, format="simple", booktabs=TRUE, digits=0, format.args = list(big.mark = ",",
+                                                                         scientific = FALSE))
+```
+
+
+## Inputs Over Time
+```{r %TARGET%-fig-inputs-over-time, echo = FALSE}
+
+ggplot(
+        data = summary,
+        aes(x = campaignMins, y = inputs.avg, group = config, color = config)
+) +
+        geom_ribbon(aes(ymin = inputs.min, ymax = inputs.max, group = config, fill = config), linetype = 0, alpha = 0.3) +
+        geom_line(size = 0.35) +
+        theme_linedraw() +
+        xlab("Campaign Time (minutes)") +
+        ylab("Inputs Executed") +
+        theme(text = element_text(size = 6), axis.line = element_line(colour = "black", size = 0.01))
+        ggsave("%TARGET%-inputs-over-time.pdf", device="pdf")
+```
+
+[Download this graph as PDF](%SITE_BASE_URL%%TARGET%-inputs-over-time.pdf)
+
+
+### Final count of inputs executed by fuzzing config
+```{r %TARGET%-table-inputs-by-config, echo = FALSE, message = FALSE,  results='asis'}
+inputsByFile <- byFile %>%
+        group_by(config, path, filename) %>%
+        summarise(invalid_inputs = max(invalid_inputs),
+                  valid_inputs = max(valid_inputs),
+                  total_inputs = max(invalid_inputs) + max(valid_inputs)) %>%
+        mutate(filename=linkToArtifactFile(path, filename, filename)) %>% ungroup() %>% select(-path)
+
+summaryInputsTable <- inputsByFile %>% group_by(config) %>% summarise(
+        avg.invalid_inputs = mean(invalid_inputs), sd.invalid_inputs = sd(invalid_inputs),
+        avg.valid_inputs = mean(valid_inputs), sd.valid_inputs = sd(valid_inputs),
+        avg.total_inputs = mean(total_inputs), sd.total_inputs = sd(total_inputs))
+
+kable(summaryInputsTable, format="simple", booktabs=TRUE, digits=0, format.args = list(big.mark = ",",
+                                                                      scientific = FALSE)) 
+```
+
+### Final count of inputs executed by fuzzing run
+```{r %TARGET%-table-inputs-by-run, echo = FALSE,  results='asis'}
+# kable(byFile %>% group_by(config, filename) %>% 
+# summarise(invalid_inputs = max(invalid_inputs), 
+# valid_inputs = max(valid_inputs), 
+# total_inputs = max(invalid_inputs) + max(valid_inputs)), format="simple",
+kable(inputsByFile, format="simple",
+booktabs=TRUE, digits=0, format.args = list(big.mark = ",", scientific = FALSE))
+```

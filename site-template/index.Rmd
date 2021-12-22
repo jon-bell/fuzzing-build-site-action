@@ -1,0 +1,29 @@
+---
+title: "Fuzzing Evaluation"
+params:
+  benchmark: 'ant'
+  artifactURL: "https://ci.in.ripley.cloud/logs"
+  dataDirs: '{"dataDirs": [{"path": "/ci-logs/public/jon-bell/JQF/c6e3b2417931d479104f59065da8ea85c7d07f31/Smoke test evaluation - 10 minutes, 5 trials/1604218427/2/artifacts", "name": "dummy-debug-ignore-this"}, {"name": "fast-collision-free-coverage", "path": "/ci-logs/public/jon-bell/JQF/cb70af65d5c0ac1a084c318c2b7260d6710d4ce9/Smoke test evaluation - 10 minutes, 5 trials/1607328380/1/artifacts"}, {"name": "reporting-ci", "path": "/ci-logs/public/jon-bell/JQF/8468ed5f28da5c3d79f85a1a0bcc8d8a8e7ccbd9/Smoke test evaluation - 10 minutes, 5 trials/1604384300/1/artifacts"}]}'
+  baseDir: "/ci-logs/"
+---
+```{r st1, include=FALSE}
+knitr::opts_knit$set(base.url="%SITE_BASE_URL%")
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+library(tidyr)
+library(purrr)
+library(tibble)
+library(readr)
+library(dplyr)
+library(stringr)
+library(ggplot2)
+library(knitr)
+library(rjson)
+library(kableExtra)
+ARTIFACTS_BASE_URL="%ARTIFACTS_BASE_URL%"
+```
+
+# %EVALUATION_NAME%
+
+Site generated: %GENERATED_TIME%
+
+%CONFIGS_LISTING%

@@ -1,0 +1,10 @@
+name: "Fuzzing Evaluation"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    toc_depth: 2
+    theme: paper
+    css: styles.css
+  md_document:
+    variant: markdown_github
