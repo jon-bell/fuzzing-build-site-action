@@ -111,8 +111,8 @@ export async function buildSite(params: {
     await exec.exec('R -e "rmarkdown::render_site()"', [], { cwd: "site_build" });
     await io.cp("site_build/_site", params.siteResultDir, { recursive: true, force: true });
     return {
-      body: "It won't let me dump the whole report here :(", //fs.readFileSync("site_build/_site/index.md", "utf-8") ,
-      summary: "[View the report on ripley.cloud]("+params.site_base_url+"/)"
+      body: fs.readFileSync("site_build/_site/index.md", "utf-8") ,
+      summary: "Summary tbd"
     }
   } catch (err) {
     console.error("Error generating site!")
@@ -148,12 +148,12 @@ export async function run(): Promise<void> {
     const comps = JSON.parse(core.getInput("comparisons")) as ComparisonsType 
     const thisRunKey = comps.thisRun.repository.full_name + "/" +
     comps.thisRun.head_sha + "/" + comps.thisRun.name + "/" + comps.thisRun.id + "/" + comps.thisRun.run_attempt;
-    const siteInfo = await buildSite({
-      comparisons: comps, artifacts_base_url: "https://ci.in.ripley.cloud/logs/",
-      siteResultDir: "/ci-logs/public/" + thisRunKey,
-      site_base_url: "https://ci.in.ripley.cloud/logs/public/" +thisRunKey  + "/site"
-    }
-    )
+    // const siteInfo = await buildSite({
+    //   comparisons: comps, artifacts_base_url: "https://ci.in.ripley.cloud/logs/",
+    //   siteResultDir: "/ci-logs/public/" + thisRunKey,
+    //   site_base_url: "https://ci.in.ripley.cloud/logs/public/" +thisRunKey  + "/site"
+    // }
+    // )
 
     const req = {
       ...repo,
@@ -163,8 +163,10 @@ export async function run(): Promise<void> {
       conclusion: "success",
       output: {
         title: "Evaluation Report",
-        summary: siteInfo.summary,
-        text: siteInfo.body
+        summary: "[View the report on ripley.cloud]("+"https://ci.in.ripley.cloud/logs/public/" +thisRunKey  + "/site"+"/)",
+        text: "w??"
+        // summary: siteInfo.summary,
+        // text: siteInfo.body
         // summary: "Some summary",
         // text: thisRunKey
       },
