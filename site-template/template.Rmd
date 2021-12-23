@@ -180,8 +180,8 @@ booktabs=TRUE, digits=0, format.args = list(big.mark = ",", scientific = FALSE))
 
 ### Failures by fuzzing run
 
-(Not de-duped in any way)
-```{r ant-table-failures-by-run, echo = FALSE, resutls='asis'}
+(Not de-duped in any way... failure matching and analysis TBD)
+```{r %TARGET%-table-failures-by-run, echo = FALSE, resutls='asis'}
 failuresByFile <- byFile %>%
         group_by(config, path, filename) %>%
         summarise(unique_crashes = max(unique_crashes)) %>%
