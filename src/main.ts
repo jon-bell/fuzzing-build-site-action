@@ -45,11 +45,12 @@ async function haveResultsForWorkflowRun(wfRun: WorkflowRun) {
   }
   return true;
 }
-function trim(str: String, len: number){
-  if(str.length > len){
+function trim(str: String, len: number) {
+  if (str.length > len) {
     const truncatedMessage = "... [Truncated, view full report in artifact]"
-    return str.substring(0,len - str.length - truncatedMessage.length) + truncatedMessage;
+    return str.substring(0, len - str.length - truncatedMessage.length) + truncatedMessage;
   }
+  return str;
 }
 export async function buildSite(params: {
   head_sha?: string,
@@ -174,7 +175,7 @@ export async function run(): Promise<void> {
     )
 
     const thisRunKeyEncoded = comps.thisRun.repository.full_name + "/" +
-    comps.thisRun.head_sha + "/" + encodeURIComponent(comps.thisRun.name || "") + "/" + comps.thisRun.id + "/" + comps.thisRun.run_attempt;
+      comps.thisRun.head_sha + "/" + encodeURIComponent(comps.thisRun.name || "") + "/" + comps.thisRun.id + "/" + comps.thisRun.run_attempt;
 
     const req = {
       ...repo,
@@ -188,11 +189,7 @@ export async function run(): Promise<void> {
         summary: trim("[View the report on ripley.cloud](https://ci.in.ripley.cloud/logs/public/" + thisRunKey + "/site" + "/)\n\n" + siteInfo.body, 65534)
       },
     }
-    console.log("Request:")
-    console.log(JSON.stringify(req, null, 2));
     const resp = await octokit.rest.checks.create(req);
-    console.log(JSON.stringify(resp, null, 2));
-
     core.setOutput('time', new Date().toTimeString())
   } catch (error) {
     if (error instanceof Error) core.setFailed(error.message)
@@ -200,3 +197,10 @@ export async function run(): Promise<void> {
 }
 
 run()
+
+//DEV:
+// buildSite({
+//   comparisons: JSON.parse(fs.readFileSync("comparisons.json","utf-8")) as ComparisonsType, artifacts_base_url: "https://ci.in.ripley.cloud/logs/",
+//   siteResultDir: "/experiment/jon/dev/fuzzing-build-site-action/site-deploy-dev",
+//   site_base_url: "http://localhost:4333/",
+// })

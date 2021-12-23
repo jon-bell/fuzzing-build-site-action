@@ -79,6 +79,7 @@ function trim(str, len) {
         const truncatedMessage = "... [Truncated, view full report in artifact]";
         return str.substring(0, len - str.length - truncatedMessage.length) + truncatedMessage;
     }
+    return str;
 }
 function buildSite(params) {
     return __awaiter(this, void 0, void 0, function* () {
@@ -195,10 +196,7 @@ function run() {
                     title: "Evaluation Report",
                     summary: trim("[View the report on ripley.cloud](https://ci.in.ripley.cloud/logs/public/" + thisRunKey + "/site" + "/)\n\n" + siteInfo.body, 65534)
                 } });
-            console.log("Request:");
-            console.log(JSON.stringify(req, null, 2));
             const resp = yield octokit.rest.checks.create(req);
-            console.log(JSON.stringify(resp, null, 2));
             core.setOutput('time', new Date().toTimeString());
         }
         catch (error) {
@@ -209,6 +207,12 @@ function run() {
 }
 exports.run = run;
 run();
+//DEV:
+// buildSite({
+//   comparisons: JSON.parse(fs.readFileSync("comparisons.json","utf-8")) as ComparisonsType, artifacts_base_url: "https://ci.in.ripley.cloud/logs/",
+//   siteResultDir: "/experiment/jon/dev/fuzzing-build-site-action/site-deploy-dev",
+//   site_base_url: "http://localhost:4333/",
+// })
 
 
 /***/ }),

@@ -42,9 +42,10 @@ readExperimentResults <- function(dataDir) {
              pattern=paste0(params$benchmark,"_plot_data_*"),
              full.names = TRUE) %>% map_df(~readResultFile(.,dataDir$name)) %>%
           group_by(campaignSecs, config, path, filename, index) %>%
-          summarise(cov = first(paths_total),
-                    invalid_inputs = first(invalid_inputs),
-                    valid_inputs = first(valid_inputs))
+          summarise(cov = last(paths_total),
+                    invalid_inputs = last(invalid_inputs),
+                    valid_inputs = last(valid_inputs),
+                    unique_crashes=last(unique_crashes))
 }
 
 # Load plot_data
@@ -175,4 +176,22 @@ kable(summaryInputsTable, format="simple", booktabs=TRUE, digits=0, format.args 
 # total_inputs = max(invalid_inputs) + max(valid_inputs)), format="simple",
 kable(inputsByFile, format="simple",
 booktabs=TRUE, digits=0, format.args = list(big.mark = ",", scientific = FALSE))
+```
+
+### Failures by fuzzing run
+
+(Not de-duped in any way)
+```{r ant-table-failures-by-run, echo = FALSE, resutls='asis'}
+failuresByFile <- byFile %>%
+        group_by(config, path, filename) %>%
+        summarise(unique_crashes = max(unique_crashes)) %>%
+        mutate(
+                FailuresTGZ=paste0(str_replace(filename,"_plot_data","_failures"),".tgz"),
+                CorpusTGZ=paste0(str_replace(filename,"_plot_data","_corpus"),".tgz"),
+                FailuresTGZ=linkToArtifactFile(path, FailuresTGZ, FailuresTGZ),
+                CorpusTGZ=linkToArtifactFile(path, CorpusTGZ, CorpusTGZ)
+                ) %>% ungroup() %>% select(-path) %>% select(-filename)
+kable(failuresByFile, format="simple",
+booktabs=TRUE, digits=0, format.args = list(big.mark = ",", scientific = FALSE))
+
 ```
