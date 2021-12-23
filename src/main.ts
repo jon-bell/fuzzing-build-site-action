@@ -115,6 +115,7 @@ export async function buildSite(params: {
     .replace(/\%CONFIGS_LISTING\%/g, reportHeader)
     .replace(/\%SITE_BASE_URL\%/g, params.site_base_url)
     .replace(/\%ARTIFACTS_BASE_URL\%/g, params.artifacts_base_url)
+    // .replace(/\%REPORT_ACTION_NAME\%/g, "jon-bell/fuzzing-build-site-action")
 
   for (let bm of benchmarks) {
     bm = bm.trim();
@@ -200,9 +201,11 @@ export async function run(): Promise<void> {
 
 run()
 
-//DEV:
+// DEV:
 // buildSite({
-//   comparisons: JSON.parse(fs.readFileSync("comparisons.json","utf-8")) as ComparisonsType, artifacts_base_url: "https://ci.in.ripley.cloud/logs/",
-//   siteResultDir: "/experiment/jon/dev/fuzzing-build-site-action/site-deploy-dev",
-//   site_base_url: "http://localhost:4333/",
+//   comparisons: JSON.parse(fs.readFileSync("comparisonsCONFETTI.json","utf-8")) as ComparisonsType, artifacts_base_url: "https://ci.in.ripley.cloud/logs/",
+//   // siteResultDir: "/experiment/jon/dev/fuzzing-build-site-action/site-deploy-dev",
+//   // site_base_url: "http://localhost:4333/",
+//   siteResultDir: "/experiment/jon/dev/fuzzing-build-site-action/site",
+//   site_base_url: "http://localhost:4333/"
 // })

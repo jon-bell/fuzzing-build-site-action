@@ -28,7 +28,7 @@ linkToArtifactFile <- function(pathToFile, fileName, linkName){
         paste0("[",linkName,"](",ARTIFACTS_BASE_URL, substring(pathToFile,nchar(params$baseDir)),"/",fileName,")")
 }
 readResultFile <- function(file, config) {
-  read_csv(file) %>%
+  read_csv(file, col_types=cols(.default="c", `# unix_time`="d", `invalid_inputs`="d", `valid_inputs`="d")) %>%
           add_column(filename = file, config=config) %>%
           extract(filename, into = c("path","filename"), regex = "(.*)/([^/]*_plot_data.*)") %>%
           extract(filename, into = c("index"),".*_plot_data_(\\d+)",remove=FALSE)%>%
