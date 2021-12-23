@@ -186,7 +186,9 @@ export async function run(): Promise<void> {
       details_url: "https://ci.in.ripley.cloud/logs/public/" + thisRunKeyEncoded + "/site" + "/",
       output: {
         title: "Evaluation Report",
-        summary: trim("[View the report on ripley.cloud](https://ci.in.ripley.cloud/logs/public/" + thisRunKey + "/site" + "/)\n\n" + siteInfo.body, 65534)
+        summary: "[View the report on ripley.cloud](https://ci.in.ripley.cloud/logs/public/" + thisRunKey + "/site" + "/)\n\n",
+        text: siteInfo.body 
+
       },
     }
     const resp = await octokit.rest.checks.create(req);
