@@ -48,7 +48,7 @@ async function haveResultsForWorkflowRun(wfRun: WorkflowRun) {
 function trim(str: String, len: number) {
   if (str.length > len) {
     const truncatedMessage = "... [Truncated, view full report in artifact]"
-    return str.substring(0, len - str.length - truncatedMessage.length) + truncatedMessage;
+    return str.substring(0, len - truncatedMessage.length) + truncatedMessage;
   }
   return str;
 }
