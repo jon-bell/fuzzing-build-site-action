@@ -46,9 +46,9 @@ async function haveResultsForWorkflowRun(wfRun: WorkflowRun) {
   return true;
 }
 function trim(str: String, len: number) {
-  if (str.length > len) {
+  if (str.length >= len) {
     const truncatedMessage = "... [Truncated, view full report in artifact]"
-    return str.substring(0, len - truncatedMessage.length) + truncatedMessage;
+    return str.substring(0, len - truncatedMessage.length - 1) + truncatedMessage;
   }
   return str;
 }
@@ -187,7 +187,7 @@ export async function run(): Promise<void> {
       output: {
         title: "Evaluation Report",
         summary: "[View the report on ripley.cloud](https://ci.in.ripley.cloud/logs/public/" + thisRunKey + "/site" + "/)\n\n",
-        text: siteInfo.body 
+        text: trim(siteInfo.body,65535)
 
       },
     }

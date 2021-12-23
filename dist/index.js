@@ -75,9 +75,9 @@ function haveResultsForWorkflowRun(wfRun) {
     });
 }
 function trim(str, len) {
-    if (str.length > len) {
+    if (str.length >= len) {
         const truncatedMessage = "... [Truncated, view full report in artifact]";
-        return str.substring(0, len - truncatedMessage.length) + truncatedMessage;
+        return str.substring(0, len - truncatedMessage.length - 1) + truncatedMessage;
     }
     return str;
 }
@@ -195,7 +195,7 @@ function run() {
             const req = Object.assign(Object.assign({}, repo), { name: "Deploy Evaluation Site", head_sha, status: "completed", conclusion: "success", details_url: "https://ci.in.ripley.cloud/logs/public/" + thisRunKeyEncoded + "/site" + "/", output: {
                     title: "Evaluation Report",
                     summary: "[View the report on ripley.cloud](https://ci.in.ripley.cloud/logs/public/" + thisRunKey + "/site" + "/)\n\n",
-                    text: siteInfo.body
+                    text: trim(siteInfo.body, 65535)
                 } });
             const resp = yield octokit.rest.checks.create(req);
             core.setOutput('time', new Date().toTimeString());
