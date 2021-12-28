@@ -193,7 +193,7 @@ export async function run(): Promise<void> {
       },
     }
     const resp = await octokit.rest.checks.create(req);
-    core.setOutput('time', new Date().toTimeString())
+    core.setOutput('reportURL', "https://ci.in.ripley.cloud/logs/public/" + thisRunKeyEncoded + "/site" + "/");
   } catch (error) {
     if (error instanceof Error) core.setFailed(error.message)
   }

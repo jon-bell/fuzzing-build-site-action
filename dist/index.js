@@ -199,7 +199,7 @@ function run() {
                     text: trim(siteInfo.body, 65535)
                 } });
             const resp = yield octokit.rest.checks.create(req);
-            core.setOutput('time', new Date().toTimeString());
+            core.setOutput('reportURL', "https://ci.in.ripley.cloud/logs/public/" + thisRunKeyEncoded + "/site" + "/");
         }
         catch (error) {
             if (error instanceof Error)
