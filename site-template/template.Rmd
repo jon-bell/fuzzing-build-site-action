@@ -184,14 +184,13 @@ booktabs=TRUE, digits=0, format.args = list(big.mark = ",", scientific = FALSE))
 ```{r %TARGET%-table-failures-by-run, echo = FALSE, resutls='asis'}
 failuresByFile <- byFile %>%
         group_by(config, path, filename) %>%
+        summarise(unique_crashes = max(unique_crashes)) %>%
         mutate(
                 FailuresTGZ=paste0(str_replace(filename,"_plot_data","_failures"),".tgz"),
                 CorpusTGZ=paste0(str_replace(filename,"_plot_data","_corpus"),".tgz"),
                 FailuresTGZ=linkToArtifactFile(path, FailuresTGZ, FailuresTGZ),
                 CorpusTGZ=linkToArtifactFile(path, CorpusTGZ, CorpusTGZ)
-                ) %>% 
-                summarise(unique_crashes = max(unique_crashes)) %>%
-                ungroup() %>% select(-path) %>% select(-filename)
+                ) %>% ungroup() %>% select(-path) %>% select(-filename) %>% relocate(FailuresTGZ, .before = unique_crashes) %>% relocate(CorpusTGZ, .before = unique_crashes)
 kable(failuresByFile, format="simple",
 booktabs=TRUE, digits=0, format.args = list(big.mark = ",", scientific = FALSE))
 
