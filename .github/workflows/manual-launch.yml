@@ -1,0 +1,36 @@
+name: 'Compare Fuzzing Branches'
+on: # rebuild any PRs and main branch changes
+  workflow_dispatch:
+    inputs:
+      repo:
+        description: "Repository to examine (e.g. jon-bell/JQF)"
+        required: true
+        default: "jon-bell/JQF"
+      include_branches:
+        description: "Comma separated list of branches to compare"
+        required: true
+        default: "fast-collision-free-coverage, reporting-ci"
+      workflow_id:
+        description: "Workflow to examine, either GitHub Actions ID, or thje name of the yml file"
+        required: true
+        default: 'eval-3h-5x.yml'
+
+jobs:
+  test: # make sure the action works on a clean machine without building
+    runs-on: self-hosted
+    env:
+      RENV_PATHS_ROOT: /ci-logs/renv
+    steps:
+      - uses: actions/checkout@v2
+      - name: Fetch workflow runs to compare to
+        id: fetch-compare
+        uses: jon-bell/list-workflow-runs-by-branch-action@main
+        with:
+          include_branches: ${{ github.event.inputs.include_branches }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          workflow_id: ${{ github.event.inputs.workflow_id }}
+          repo: ${{ github.event.inputs.repo }}
+      - uses: ./
+        with:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          comparisons: ${{ steps.fetch-compare.outputs.workflow_runs }} 
