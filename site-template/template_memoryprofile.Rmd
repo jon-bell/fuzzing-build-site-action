@@ -1,0 +1,213 @@
+---
+title: "Fuzzer Evaluation - TEMPLATE THAT SHOULD NOT BE RENDERED DIRECTLY EXCEPT FOR DEV"
+output: html_document
+params:
+  benchmark: 'ant'
+  artifactURL: "https://ci.in.ripley.cloud/logs"
+  dataDirs: '{"dataDirs": [{"path": "/ci-logs/public/jon-bell/JQF/c6e3b2417931d479104f59065da8ea85c7d07f31/Smoke test evaluation - 10 minutes, 5 trials/1604218427/2/artifacts", "name": "dummy-debug-ignore-this"}, {"name": "fast-collision-free-coverage", "path": "/ci-logs/public/jon-bell/JQF/cb70af65d5c0ac1a084c318c2b7260d6710d4ce9/Smoke test evaluation - 10 minutes, 5 trials/1607328380/1/artifacts"}, {"name": "reporting-ci", "path": "/ci-logs/public/jon-bell/JQF/8468ed5f28da5c3d79f85a1a0bcc8d8a8e7ccbd9/Smoke test evaluation - 10 minutes, 5 trials/1604384300/1/artifacts"}]}'
+  baseDir: "/ci-logs/"
+---
+```{r st1, include=FALSE}
+# This setup block is  not actually included in the generated file, just here for debugging + reference of what gets included above the rest of this file...
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyr)
+library(purrr)
+library(tibble)
+library(readr)
+library(dplyr)
+library(stringr)
+library(ggplot2)
+library(knitr)
+library(rjson)
+library(kableExtra)
+
+linkToArtifactFile <- function(pathToFile, fileName, linkName){
+        paste0("[",linkName,"](",ARTIFACTS_BASE_URL, substring(pathToFile,nchar(params$baseDir)),"/",fileName,")")
+}
+readResultFile <- function(file, config) {
+  read_csv(file, col_types=cols(.default="d")) %>%
+          add_column(filename = file, config=config) %>%
+          extract(filename, into = c("path","filename"), regex = "(.*)/([^/]*_plot_data.*)") %>%
+          extract(filename, into = c("index"),".*_plot_data_(\\d+)",remove=FALSE)%>%
+          mutate(
+                  campaignSecs = `# unix_time` - min(`# unix_time`))
+}
+
+
+readExperimentResults <- function(dataDir) {
+  list.files(path=dataDir$path, recursive = F,
+             pattern=paste0(params$benchmark,"_plot_data_*"),
+             full.names = TRUE) %>%
+        map_df(~readResultFile(.,dataDir$name)) %>%
+        group_by(campaignSecs, config, path, filename, index) %>%
+        summarise(across(everything(), last)) %>%
+        mutate(cov=paths_total, total_inputs=invalid_inputs+valid_inputs)
+}
+
+# Load plot_data
+configs <- fromJSON(params$dataDirs)$dataDirs
+data <- map_dfr(configs, readExperimentResults)
+byFile <- data %>%
+        mutate(campaignMins = floor(campaignSecs / 60)) %>%
+        complete(config, filename, campaignMins) %>%
+        fill(names(.)) %>%
+        group_by(config, filename, index)
+
+summary <- byFile %>%
+        group_by(campaignMins, config) %>%
+        summarise(across(everything(), list(avg=mean,max = max,min = min))) 
+
+# Load JaCoCo branch data
+readJaCoCo <- function(dataDir){
+  jsonFile <- paste0(dataDir$path,"/",params$benchmark,"_jacoco_summary.json")
+  if(file.exists(jsonFile)){
+    as.data.frame(fromJSON(file=jsonFile)) %>% add_column(config=dataDir$name)
+  } else{
+    data.frame(config=c(dataDir$name),branchesCovered=c(NA),branchesTotal=c(NA))
+  }
+}
+
+
+jacoco <- map_dfr(configs, readJaCoCo)
+```
+
+
+```{r %TARGET%-memory-setup, include = FALSE}
+readProfilingFile <- function(file, config) {
+  profile <- read_csv(file, col_types = cols(.default="d"))  %>%
+        add_column(filename = file, config=config) %>%
+        extract(filename, into = c("path","measurement","index"),
+                regex = "(.*)/[^_]+_(.*).csv_(\\d+)$", remove=FALSE)
+}
+readProfilingResults <- function(dataDir) {
+  profile <- list.files(path=dataDir$path, recursive = F,
+             pattern=paste0(localParams$benchmark,".*.csv.*$"),
+             full.names = TRUE) %>% map_df(~readProfilingFile(.,dataDir$name))
+        if("unix_time" %in% colnames(profile)){
+                profile %>%
+                mutate(campaignSecs = (unix_time - min(unix_time))/1000) %>%
+                group_by(campaignSecs, config, measurement, path, filename, index) %>%
+                summarise(across(everything(), last))
+        }
+}
+profilingData <- map_dfr(configs, readProfilingResults)
+profilingByFile <- profilingData %>%
+        mutate(campaignMins = floor(campaignSecs / 60)) %>%
+        complete(config, filename, campaignMins) %>%
+        fill(names(.)) %>%
+        group_by(config, filename, measurement, index)
+profilingSummary <- profilingByFile %>%
+        group_by(campaignMins, config, measurement) %>%
+        summarise(across(everything(), list(avg=mean,max = max,min = min)))
+```
+
+## Heap Usage Over Time
+
+Each plot shows each trial as its own line, with colors grouping the configurations.
+
+### JQF
+
+#### Heap Usage
+```{r %TARGET%-fig-jqf-heap-over-time, echo = FALSE}
+ggplot(
+        data = byFile,
+        aes(x = campaignMins, y = heapUsageBytes, group = filename, color = config)
+) +
+        geom_line(size = 0.35) +
+        theme_linedraw() +
+        scale_y_continuous(labels=scales::label_bytes()) + 
+        xlab("Campaign Time (minutes)") +
+        ylab("Memory Used") +
+        theme(text = element_text(size = 6), axis.line = element_line(colour = "black", size = 0.01)) 
+ggsave("%TARGET%-jqf-heap-over-time.pdf", device="pdf")
+```
+
+[Download this graph as PDF](%SITE_BASE_URL%%TARGET%-jqf-heap-over-time.pdf)
+
+#### Non-Heap Usage
+```{r %TARGET%-fig-jqf-nonheap-over-time, echo = FALSE}
+ggplot(
+       data = byFile,
+       aes(x = campaignMins, y = nonHeapUsageBytes, group = filename, color = config)) +
+        geom_line(size = 0.35) +
+        theme_linedraw() +
+        scale_y_continuous(labels=scales::label_bytes()) + 
+        xlab("Campaign Time (minutes)") +
+        ylab("Memory Used") +
+        theme(text = element_text(size = 6), axis.line = element_line(colour = "black", size = 0.01)) 
+ggsave("%TARGET%-jqf-nonheap-over-time.pdf", device="pdf")
+```
+
+[Download this graph as PDF](%SITE_BASE_URL%%TARGET%-jqf-nonheap-over-time.pdf)
+
+### Knarr
+
+#### Heap Usage
+```{r %TARGET%-fig-knarr-heap-over-time, echo = FALSE}
+ggplot(
+        data = profilingByFile %>% filter(measurement=='knarr-memory'),
+        aes(x = campaignMins, y = heapUsageBytes, group = filename, color = config)
+) +
+        geom_line(size = 0.35) +
+        theme_linedraw() +
+        scale_y_continuous(labels=scales::label_bytes()) + 
+        xlab("Campaign Time (minutes)") +
+        ylab("Memory Used") +
+        theme(text = element_text(size = 6), axis.line = element_line(colour = "black", size = 0.01)) 
+ggsave("%TARGET%-knarr-heap-over-time.pdf", device="pdf")
+```
+
+[Download this graph as PDF](%SITE_BASE_URL%%TARGET%-knarr-heap-over-time.pdf)
+
+#### Non-Heap Usage
+```{r %TARGET%-fig-knarr-nonheap-over-time, echo = FALSE}
+ggplot(
+        data = profilingByFile %>% filter(measurement=='knarr-memory'),
+        aes(x = campaignMins, y = nonHeapUsageBytes, group = filename, color = config)
+) +
+        geom_line(size = 0.35) +
+        theme_linedraw() +
+        scale_y_continuous(labels=scales::label_bytes()) + 
+        xlab("Campaign Time (minutes)") +
+        ylab("Memory Used") +
+        theme(text = element_text(size = 6), axis.line = element_line(colour = "black", size = 0.01)) 
+ggsave("%TARGET%-knarr-nonheap-over-time.pdf", device="pdf")
+```
+
+[Download this graph as PDF](%SITE_BASE_URL%%TARGET%-knarr-nonheap-over-time.pdf)
+
+### Confetti-Central
+
+#### Heap Usage
+```{r %TARGET%-fig-confetti-central-heap-over-time, echo = FALSE}
+ggplot(
+        data = profilingByFile %>% filter(measurement=='confetti-central-memory'),
+        aes(x = campaignMins, y = heapUsageBytes, group = filename, color = config)
+) +
+        geom_line(size = 0.35) +
+        theme_linedraw() +
+        scale_y_continuous(labels=scales::label_bytes()) + 
+        xlab("Campaign Time (minutes)") +
+        ylab("Memory Used") +
+        theme(text = element_text(size = 6), axis.line = element_line(colour = "black", size = 0.01)) 
+ ggsave("%TARGET%-confetti-central-heap-over-time.pdf", device="pdf")
+```
+
+[Download this graph as PDF](%SITE_BASE_URL%%TARGET%-confetti-central-heap-over-time.pdf)
+
+#### Non-Heap Usage
+```{r %TARGET%-fig-confetti-central-nonheap-over-time, echo = FALSE}
+ggplot(
+        data = profilingByFile %>% filter(measurement=='confetti-central-memory'),
+        aes(x = campaignMins, y = nonHeapUsageBytes, group = filename, color = config)
+) +
+        geom_line(size = 0.35) +
+        theme_linedraw() +
+        scale_y_continuous(labels=scales::label_bytes()) + 
+        xlab("Campaign Time (minutes)") +
+        ylab("Memory Used") +
+        theme(text = element_text(size = 6), axis.line = element_line(colour = "black", size = 0.01)) 
+ggsave("%TARGET%-confetti-central-nonheap-over-time.pdf", device="pdf")
+```
+
+[Download this graph as PDF](%SITE_BASE_URL%%TARGET%-confetti-central-nonheap-over-time.pdf)
