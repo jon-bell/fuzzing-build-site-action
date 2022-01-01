@@ -128,7 +128,7 @@ export async function buildSite(params: {
     reportString += '```\n\n'
     reportString += '\n' + templateString.replace(/\%TARGET\%/g, bm).replace(/params\$/g, "localParams$") + '\n'
 
-    if(process.env.PROFILE_HEAP){
+    if(process.env.PROFILE_HEAP && process.env.PROFILE_HEAP.toLowerCase() == "true"){
       reportString += '\n'
       reportString += '\n' + templateMemoryString.replace(/\%TARGET\%/g, bm).replace(/params\$/g, "localParams$") + '\n'
     }
@@ -212,10 +212,19 @@ export async function run(): Promise<void> {
 
 run()
 
-// DEV:
+// // DEV:
+// const comps = JSON.parse(fs.readFileSync("comparisons.json","utf-8")) as ComparisonsType;
+// const thisRunKey = comps.thisRun.repository.full_name + "/" +
+// comps.thisRun.head_sha + "/" + comps.thisRun.name + "/" + comps.thisRun.id + "/" + comps.thisRun.run_attempt;
+
 // buildSite({
-//   comparisons: JSON.parse(fs.readFileSync("comparisonsCONFETTI.json","utf-8")) as ComparisonsType, artifacts_base_url: "https://ci.in.ripley.cloud/logs/",
+//   comparisons: comps, artifacts_base_url: "https://ci.in.ripley.cloud/logs/",
+//   head_sha: comps.thisRun.head_sha,
 // //   // siteResultDir: "/experiment/jon/dev/fuzzing-build-site-action/site-deploy-dev",
-//   site_base_url: "https://ci.in.ripley.cloud/logs/public/confetti-ram-test/",
+//   // site_base_url: "https://ci.in.ripley.cloud/logs/public/confetti-ram-test/",
+//   // site_base_url: "http://localhost:4444/",
+//   // siteResultDir: "/ci-logs/public/" + thisRunKey + "/site",
+//   site_base_url: "https://ci.in.ripley.cloud/logs/public/" + thisRunKey + "/site/",
 //   siteResultDir: "/experiment/jon/dev/fuzzing-build-site-action/site",
 // })
+// console.log("final results dir should be: \"/ci-logs/public/"+ thisRunKey+ "/site\"")
