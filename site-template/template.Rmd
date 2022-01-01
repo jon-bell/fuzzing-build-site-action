@@ -40,12 +40,11 @@ readResultFile <- function(file, config) {
 readExperimentResults <- function(dataDir) {
   list.files(path=dataDir$path, recursive = F,
              pattern=paste0(params$benchmark,"_plot_data_*"),
-             full.names = TRUE) %>% map_df(~readResultFile(.,dataDir$name)) %>%
-          group_by(campaignSecs, config, path, filename, index) %>%
-          summarise(cov = last(paths_total),
-                    invalid_inputs = last(invalid_inputs),
-                    valid_inputs = last(valid_inputs),
-                    unique_crashes=last(unique_crashes))
+             full.names = TRUE) %>%
+        map_df(~readResultFile(.,dataDir$name)) %>%
+        group_by(campaignSecs, config, path, filename, index) %>%
+        summarise(across(everything(), last)) %>%
+        mutate(cov=paths_total, total_inputs=invalid_inputs+valid_inputs)
 }
 
 # Load plot_data
@@ -54,19 +53,12 @@ data <- map_dfr(configs, readExperimentResults)
 byFile <- data %>%
         mutate(campaignMins = floor(campaignSecs / 60)) %>%
         complete(config, filename, campaignMins) %>%
-        fill(cov) %>%
+        fill(names(.)) %>%
         group_by(config, filename, index)
 
 summary <- byFile %>%
         group_by(campaignMins, config) %>%
-        summarise(
-                cov.avg = mean(cov),
-                cov.min = min(cov),
-                cov.max = max(cov),
-                inputs.avg = mean(invalid_inputs + valid_inputs),
-                inputs.min = min(invalid_inputs + valid_inputs),
-                inputs.max = max(invalid_inputs + valid_inputs)
-        )
+        summarise(across(everything(), list(avg=mean,max = max,min = min))) 
 
 # Load JaCoCo branch data
 readJaCoCo <- function(dataDir){
@@ -87,9 +79,9 @@ jacoco <- map_dfr(configs, readJaCoCo)
 ```{r %TARGET%-fig-branches-over-time, echo = FALSE}
 ggplot(
         data = summary,
-        aes(x = campaignMins, y = cov.avg, group = config, color = config)
+        aes(x = campaignMins, y = cov_avg, group = config, color = config)
 ) +
-        geom_ribbon(aes(ymin = cov.min, ymax = cov.max, group = config, fill = config),
+        geom_ribbon(aes(ymin = cov_min, ymax = cov_max, group = config, fill = config),
                     linetype = 0, alpha = 0.3) +
         geom_line(size = 0.35) +
         theme_linedraw() +
@@ -136,9 +128,9 @@ kable(branchCovByFuzzingRun, format="simple", booktabs=TRUE, digits=0, format.ar
 
 ggplot(
         data = summary,
-        aes(x = campaignMins, y = inputs.avg, group = config, color = config)
+        aes(x = campaignMins, y = total_inputs_avg, group = config, color = config)
 ) +
-        geom_ribbon(aes(ymin = inputs.min, ymax = inputs.max, group = config, fill = config), linetype = 0, alpha = 0.3) +
+        geom_ribbon(aes(ymin = total_inputs_min, ymax = total_inputs_max, group = config, fill = config), linetype = 0, alpha = 0.3) +
         geom_line(size = 0.35) +
         theme_linedraw() +
         xlab("Campaign Time (minutes)") +
@@ -170,10 +162,6 @@ kable(summaryInputsTable, format="simple", booktabs=TRUE, digits=0, format.args 
 
 ### Final count of inputs executed by fuzzing run
 ```{r %TARGET%-table-inputs-by-run, echo = FALSE,  results='asis'}
-# kable(byFile %>% group_by(config, filename) %>% 
-# summarise(invalid_inputs = max(invalid_inputs), 
-# valid_inputs = max(valid_inputs), 
-# total_inputs = max(invalid_inputs) + max(valid_inputs)), format="simple",
 kable(inputsByFile, format="simple",
 booktabs=TRUE, digits=0, format.args = list(big.mark = ",", scientific = FALSE))
 ```
