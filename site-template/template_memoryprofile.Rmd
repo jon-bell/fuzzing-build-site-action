@@ -83,22 +83,28 @@ readProfilingResults <- function(dataDir) {
   profile <- list.files(path=dataDir$path, recursive = F,
              pattern=paste0(localParams$benchmark,".*.csv.*$"),
              full.names = TRUE) %>% map_df(~readProfilingFile(.,dataDir$name))
-        if("unix_time" %in% colnames(profile)){
+        if("# unix_time" %in% colnames(profile)){
                 profile %>%
-                mutate(campaignSecs = (unix_time - min(unix_time))/1000) %>%
+                mutate(campaignSecs = (`# unix_time` - min(`# unix_time`))/1000) %>%
                 group_by(campaignSecs, config, measurement, path, filename, index) %>%
                 summarise(across(everything(), last))
         }
 }
 profilingData <- map_dfr(configs, readProfilingResults)
-profilingByFile <- profilingData %>%
-        mutate(campaignMins = floor(campaignSecs / 60)) %>%
-        complete(config, filename, campaignMins) %>%
-        fill(names(.)) %>%
-        group_by(config, filename, measurement, index)
-profilingSummary <- profilingByFile %>%
-        group_by(campaignMins, config, measurement) %>%
-        summarise(across(everything(), list(avg=mean,max = max,min = min)))
+if("campaignSecs" %in% colnames(profile)){
+        profilingByFile <- profilingData %>%
+               mutate(campaignMins = floor(campaignSecs / 60)) %>%
+                complete(config, filename, campaignMins) %>%
+                fill(names(.)) %>%
+                group_by(config, filename, measurement, index)
+        profilingSummary <- profilingByFile %>%
+                group_by(campaignMins, config, measurement) %>%
+                summarise(across(everything(), list(avg=mean,max = max,min = min)))
+} else {
+        profilingByFile <- data.frame(campaignMins=double(),
+        heapUsageBytes=double(), nonHeapUsageBytes=double(), 
+        measurement=character(), config=character(), filename=character())
+}
 ```
 
 ## Heap Usage Over Time
