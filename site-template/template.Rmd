@@ -38,22 +38,31 @@ readResultFile <- function(file, config) {
 
 
 readExperimentResults <- function(dataDir) {
-  list.files(path=dataDir$path, recursive = F,
-             pattern=paste0(params$benchmark,"_plot_data_*"),
+  dat <- list.files(path=dataDir$path, recursive = F,
+             pattern=paste0(localParams$benchmark,"_plot_data_*"),
              full.names = TRUE) %>%
         map_df(~readResultFile(.,dataDir$name)) %>%
-        group_by(campaignSecs, config, path, filename, index) %>%
-        summarise(across(everything(), last)) %>%
-        mutate(cov=paths_total, total_inputs=invalid_inputs+valid_inputs)
+        mutate(campaignMins = floor(campaignSecs / 60)) %>%
+        complete(config, filename, campaignMins) %>%
+        fill(names(.)) %>%
+        group_by(campaignMins, config, path, filename, index) %>%
+        summarise(across(everything(), last))  %>%
+        mutate(total_inputs=invalid_inputs+valid_inputs)
+   if("all_covered_probes" %in% colnames(dat)){
+           dat %>% mutate(cov = all_covered_probes)
+   }
+   else if("all_cov" %in% colnames(dat)){
+           dat %>% mutate(cov=all_cov)
+   }
+   else {
+           dat %>% mutate(cov = NA)
+   }
 }
 
 # Load plot_data
 configs <- fromJSON(params$dataDirs)$dataDirs
 data <- map_dfr(configs, readExperimentResults)
 byFile <- data %>%
-        mutate(campaignMins = floor(campaignSecs / 60)) %>%
-        complete(config, filename, campaignMins) %>%
-        fill(names(.)) %>%
         group_by(config, filename, index)
 
 summary <- byFile %>%
