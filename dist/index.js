@@ -201,13 +201,15 @@ function run() {
             });
             const thisRunKeyEncoded = comps.thisRun.repository.full_name + "/" +
                 comps.thisRun.head_sha + "/" + encodeURIComponent(comps.thisRun.name || "") + "/" + comps.thisRun.id + "/" + comps.thisRun.run_attempt;
-            const req = Object.assign(Object.assign({}, repo), { name: "Deploy Evaluation Site", head_sha, status: "completed", conclusion: "success", details_url: "https://ci.in.ripley.cloud/logs/public/" + thisRunKeyEncoded + "/site" + "/", output: {
+            const deployedAddress = "https://ci.in.ripley.cloud/logs/public/" + thisRunKeyEncoded + "/site/";
+            const req = Object.assign(Object.assign({}, repo), { name: "Deploy Evaluation Site", head_sha, status: "completed", conclusion: "success", details_url: deployedAddress, output: {
                     title: "Evaluation Report",
-                    summary: "[View the report on ripley.cloud](https://ci.in.ripley.cloud/logs/public/" + thisRunKey + "/site" + "/)\n\n",
-                    text: trim(siteInfo.body, 65535)
+                    summary: "[View the report on ripley.cloud](" + deployedAddress + ")\n\n",
+                    // text: trim(siteInfo.body,65535)
                 } });
+            console.log("Evaluation complete! View the report at " + deployedAddress);
+            core.setOutput('reportURL', deployedAddress);
             const resp = yield octokit.rest.checks.create(req);
-            core.setOutput('reportURL', "https://ci.in.ripley.cloud/logs/public/" + thisRunKeyEncoded + "/site" + "/");
         }
         catch (error) {
             if (error instanceof Error)
@@ -218,18 +220,19 @@ function run() {
 exports.run = run;
 run();
 // // DEV:
-// const comps = JSON.parse(fs.readFileSync("comparisons.json","utf-8")) as ComparisonsType;
+// const comps = JSON.parse(fs.readFileSync("comparisonsCONFETTI.json","utf-8")) as ComparisonsType;
+// const comps = JSON.parse(fs.readFileSync("comparisons.json", "utf-8")) as ComparisonsType;
 // const thisRunKey = comps.thisRun.repository.full_name + "/" +
 // comps.thisRun.head_sha + "/" + comps.thisRun.name + "/" + comps.thisRun.id + "/" + comps.thisRun.run_attempt;
 // buildSite({
-//   comparisons: comps, artifacts_base_url: "https://ci.in.ripley.cloud/logs/",
-//   head_sha: comps.thisRun.head_sha,
+// comparisons: comps, artifacts_base_url: "https://ci.in.ripley.cloud/logs/",
+// head_sha: comps.thisRun.head_sha,
 // //   // siteResultDir: "/experiment/jon/dev/fuzzing-build-site-action/site-deploy-dev",
 //   // site_base_url: "https://ci.in.ripley.cloud/logs/public/confetti-ram-test/",
-//   // site_base_url: "http://localhost:4444/",
-//   // siteResultDir: "/ci-logs/public/" + thisRunKey + "/site",
-//   site_base_url: "https://ci.in.ripley.cloud/logs/public/" + thisRunKey + "/site/",
-//   siteResultDir: "/experiment/jon/dev/fuzzing-build-site-action/site",
+// site_base_url: "http://localhost:4444/",
+// siteResultDir: "/ci-logs/public/" + thisRunKey + "/site",
+// site_base_url: "https://ci.in.ripley.cloud/logs/public/" + thisRunKey + "/site/",
+// siteResultDir: "/experiment/jon/dev/fuzzing-build-site-action/site",
 // })
 // console.log("final results dir should be: \"/ci-logs/public/"+ thisRunKey+ "/site\"")
 

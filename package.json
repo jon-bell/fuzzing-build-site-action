@@ -1,8 +1,8 @@
 {
-  "name": "typescript-action",
+  "name": "fuzzing-site-build-action",
   "version": "0.0.0",
   "private": true,
-  "description": "TypeScript template action",
+  "description": "Fuzzing site build action",
   "main": "lib/main.js",
   "scripts": {
     "build": "tsc",
@@ -15,14 +15,14 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/actions/typescript-action.git"
+    "url": "git+https://github.com/jon-bell/fuzzing-build-site-action.git"
   },
   "keywords": [
     "actions",
     "node",
     "setup"
   ],
-  "author": "",
+  "author": "Jonathan Bell",
   "license": "MIT",
   "dependencies": {
     "@actions/artifact": "^0.6.1",
