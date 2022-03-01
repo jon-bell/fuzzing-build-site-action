@@ -12,7 +12,7 @@ jobs:
     env:
       RENV_PATHS_ROOT: /ci-logs/renv
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
       - name: Fetch workflow runs to compare to
         id: fetch-compare
         uses: jon-bell/list-workflow-runs-by-branch-action@main
