@@ -48,6 +48,9 @@ readExperimentResults <- function(dataDir) {
         group_by(campaignMins, config, path, filename, index) %>%
         summarise(across(everything(), last))  %>%
         mutate(total_inputs=invalid_inputs+valid_inputs)
+   if(!("b1" %in% colnames(dat))){
+           dat <- dat %>% mutate(b0 = NA, b1 = NA, b2 = NA)
+   }
    if("all_covered_probes" %in% colnames(dat)){
            dat %>% mutate(cov = all_covered_probes)
    }
@@ -81,6 +84,8 @@ readJaCoCo <- function(dataDir){
 
 
 jacoco <- map_dfr(configs, readJaCoCo)
+hasB1 <- any(which(!is.na(byFile$b1)))
+hasB2 <- any(which(!is.na(byFile$b2)))
 ```
 
 ## Branch Probes Over Time
@@ -102,20 +107,63 @@ ggsave("%TARGET%-branches-over-time.pdf", device="pdf")
 
 [Download this graph as PDF](%SITE_BASE_URL%%TARGET%-branches-over-time.pdf)
 
+```{r %TARGET%-b1-head, eval=hasB1, echo = FALSE}
+knitr::asis_output("### B(1) Over Time") 
+```
+```{r %TARGET%-b1, eval=hasB1, echo = FALSE}
+ggplot(
+        data = summary,
+        aes(x = campaignMins, y = b1_avg, group = config, color = config)
+) +
+        geom_ribbon(aes(ymin = b1_min, ymax = b1_max, group = config, fill = config),
+                    linetype = 0, alpha = 0.3) +
+        geom_line(size = 0.35) +
+        theme_linedraw() +
+        xlab("Campaign Time (minutes)") +
+        ylab("B(1)") +
+        theme(text = element_text(size = 6), axis.line = element_line(colour = "black", size = 0.01)) 
+ggsave("%TARGET%-b1-over-time.pdf", device="pdf")
+```
+```{r %TARGET%-b1-link, eval=hasB1, echo = FALSE}
+knitr::asis_output("[Download this graph as PDF](%SITE_BASE_URL%%TARGET%-b1-over-time.pdf)") 
+```
+```{r %TARGET%-b2-head, eval=hasB2, echo = FALSE}
+knitr::asis_output("### B(2) Over Time") 
+```
+```{r %TARGET%-b2-link, eval=hasB2, echo = FALSE}
+ggplot(
+        data = summary,
+        aes(x = campaignMins, y = b2_avg, group = config, color = config)
+) +
+        geom_ribbon(aes(ymin = b2_min, ymax = b2_max, group = config, fill = config),
+                    linetype = 0, alpha = 0.3) +
+        geom_line(size = 0.35) +
+        theme_linedraw() +
+        xlab("Campaign Time (minutes)") +
+        ylab("B(2)") +
+        theme(text = element_text(size = 6), axis.line = element_line(colour = "black", size = 0.01)) 
+ggsave("%TARGET%-b2-over-time.pdf", device="pdf")
+```
+```{r %TARGET%-b2, eval=hasB2, echo = FALSE}
+knitr::asis_output("[Download this graph as PDF](%SITE_BASE_URL%%TARGET%-b2-over-time.pdf)") 
+```
+
 ### Final branch coverage by fuzzing config
 ```{r %TARGET%-table-branches-by-config, echo = FALSE, message = FALSE, results='asis'}
 summaryCoverageTable <- byFile %>%
         group_by(filename, path, config) %>%
-        summarise(probesHit = max(cov)) %>%
-        group_by(config, path) %>%
-        summarise(Average.probesHit = mean(probesHit), SD.probesHit = sd(probesHit)) %>%
-        ungroup()%>%
+                summarise(probesHit = max(cov), `B(1)` = max(b1), `B(2)` = max(b2)) %>%
+                group_by(config, path) %>%
+                        summarise(Average.probesHit = mean(probesHit), SD.probesHit = sd(probesHit),
+                                `Average.B(1)` = mean(`B(1)`), `SD.B(1)` = sd(`B(1)`),
+                                `Average.B(2)` = mean(`B(2)`), `SD.B(2)` = sd(`B(2)`)) %>%
+                ungroup() %>%
         left_join(jacoco,by="config") %>%
         mutate(
                 config=linkToArtifactFile(path, paste0("jacoco-",params$benchmark,"/"), config)
                 ) %>%
         rename(Configuration=config, JaCoCo.Br.Cov=branchesCovered,JaCoCo.Br.Tot=branchesTotal)  %>%
-        relocate(JaCoCo.Br.Cov,.before=JaCoCo.Br.Tot) %>% select(-path)
+        relocate(JaCoCo.Br.Cov,.before=JaCoCo.Br.Tot) %>% select(-path) %>% select_if(~ !all(is.na(.)))
 kable(summaryCoverageTable, format="simple", booktabs=TRUE, digits=0, format.args = list(big.mark = ",",
                                                                         scientific = FALSE)) 
 ```
@@ -124,8 +172,8 @@ kable(summaryCoverageTable, format="simple", booktabs=TRUE, digits=0, format.arg
 ```{r %TARGET%-table-branches-by-run, echo = FALSE,  results='asis'}
 branchCovByFuzzingRun <- byFile %>%
         group_by(config, path, filename) %>%
-        summarise(`Probes Hit` = max(cov)) %>%
-        mutate(filename=linkToArtifactFile(path, filename, filename)) %>% ungroup() %>% select(-path)
+        summarise(`Probes Hit` = max(cov), `B(1)` = max(b1), `B(2)` = max(b2)) %>%
+        mutate(filename=linkToArtifactFile(path, filename, filename)) %>% ungroup() %>% select(-path)  %>% select_if(~ !all(is.na(.)))
 
 kable(branchCovByFuzzingRun, format="simple", booktabs=TRUE, digits=0, format.args = list(big.mark = ",",
                                                                          scientific = FALSE))
