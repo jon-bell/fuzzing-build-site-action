@@ -110,6 +110,7 @@ ggsave("%TARGET%-branches-over-time.pdf", device="pdf")
 ```{r %TARGET%-b1-head, eval=hasB1, echo = FALSE}
 knitr::asis_output("### B(1) Over Time") 
 ```
+
 ```{r %TARGET%-b1, eval=hasB1, echo = FALSE}
 ggplot(
         data = summary,
@@ -124,12 +125,15 @@ ggplot(
         theme(text = element_text(size = 6), axis.line = element_line(colour = "black", size = 0.01)) 
 ggsave("%TARGET%-b1-over-time.pdf", device="pdf")
 ```
+
 ```{r %TARGET%-b1-link, eval=hasB1, echo = FALSE}
 knitr::asis_output("[Download this graph as PDF](%SITE_BASE_URL%%TARGET%-b1-over-time.pdf)") 
 ```
+
 ```{r %TARGET%-b2-head, eval=hasB2, echo = FALSE}
 knitr::asis_output("### B(2) Over Time") 
 ```
+
 ```{r %TARGET%-b2-link, eval=hasB2, echo = FALSE}
 ggplot(
         data = summary,
@@ -144,6 +148,7 @@ ggplot(
         theme(text = element_text(size = 6), axis.line = element_line(colour = "black", size = 0.01)) 
 ggsave("%TARGET%-b2-over-time.pdf", device="pdf")
 ```
+
 ```{r %TARGET%-b2, eval=hasB2, echo = FALSE}
 knitr::asis_output("[Download this graph as PDF](%SITE_BASE_URL%%TARGET%-b2-over-time.pdf)") 
 ```
