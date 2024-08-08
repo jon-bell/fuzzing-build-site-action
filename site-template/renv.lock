@@ -128,6 +128,13 @@
       "Repository": "CRAN",
       "Hash": "36f1ae62f026c8ba9f9b5c9a08c03297"
     },
+    "effsize": {
+      "Package": "effsize",
+      "Version": "0.8.1",
+      "Source": "Repository",
+      "Repository": "CRAN",
+      "Hash": "8d00cc615bfe85d56071542db9d94db9"
+    },
     "ellipsis": {
       "Package": "ellipsis",
       "Version": "0.3.2",

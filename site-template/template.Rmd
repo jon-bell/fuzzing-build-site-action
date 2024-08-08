@@ -20,6 +20,7 @@ library(ggplot2)
 library(knitr)
 library(rjson)
 library(kableExtra)
+library(effsize)
 ```
 
 # %TARGET%
