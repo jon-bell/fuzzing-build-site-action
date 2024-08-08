@@ -79,7 +79,7 @@ readSingleJaCoCo <- function(filename){
 
 readJaCoCo <- function(dataDir){
   
-  jacocoFiles <- Sys.glob(file.path(dataDir$path,"ant_*_jacoco_summary.json"))
+  jacocoFiles <- Sys.glob(file.path(dataDir$path,"%TARGET%_*_jacoco_summary.json"))
   
   # if jsonFiles is a vector, read them all in, else return default
   if(length(jacocoFiles) > 0){
