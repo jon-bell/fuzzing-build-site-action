@@ -66,7 +66,7 @@ function haveResultsForWorkflowRun(wfRun) {
         const parentDir = yield getPathToAritfacts(wfRun);
         for (let bm of benchmarks) {
             bm = bm.trim();
-            if (!fs.existsSync(parentDir + "/" + bm + "_jacoco_summary.json")) {
+            if (!fs.existsSync(parentDir + "/" + bm + "_0_jacoco_summary.json")) {
                 console.log("Error: couldn't find jacoco results for " + bm + " in " + parentDir + " bailing!");
                 return false;
             }
@@ -105,22 +105,27 @@ function buildSite(params) {
         let includeHeadInResults = false;
         includeHeadInResults = yield haveResultsForWorkflowRun(comparisons.thisRun);
         if (comparisons.byBranch.length > 1 || (comparisons.byBranch.length == 1 && includeHeadInResults)) {
-            reportHeader = 'Configurations evalauted:\n\n';
+            reportHeader = 'Configurations evaluated:\n\n';
         }
         else {
             reportHeader = 'Configuration evaluated:\n\n';
         }
+        console.log("Include head in results: " + includeHeadInResults + " " + head_sha);
         if (includeHeadInResults && head_sha) {
+            console.log("Including head in results");
             reportHeader += wfRunToMdDescription(comparisons.thisRun.head_branch || "?", comparisons.thisRun, true);
-            dataDirs.push({ "name": head_sha.substring(0, 6), "path": yield getPathToAritfacts(comparisons.thisRun) });
+            dataDirs.push({ "name": head_sha.substring(0, 6), "isBaseline": true, "path": yield getPathToAritfacts(comparisons.thisRun) });
         }
         for (let branchRun of comparisons.byBranch) {
             for (let wfRun of branchRun.workflow_runs) {
                 if (yield haveResultsForWorkflowRun(wfRun)) {
                     reportHeader += wfRunToMdDescription(branchRun.name, wfRun);
-                    dataDirs.push({ "name": branchRun.name, "path": yield getPathToAritfacts(wfRun) });
+                    dataDirs.push({ "name": branchRun.name, "isBaseline": false, "path": yield getPathToAritfacts(wfRun) });
                 }
             }
+        }
+        if (dataDirs.length == 0) {
+            throw new Error("No results found for any of the runs!");
         }
         //Copy the site
         yield io.cp("site-template", "site_build", { recursive: true });
@@ -218,23 +223,23 @@ function run() {
     });
 }
 exports.run = run;
-run();
+// run()
 // // DEV:
 // const comps = JSON.parse(fs.readFileSync("comparisonsCONFETTI.json","utf-8")) as ComparisonsType;
-// const comps = JSON.parse(fs.readFileSync("comparisons.json", "utf-8")) as ComparisonsType;
-// const thisRunKey = comps.thisRun.repository.full_name + "/" +
-// comps.thisRun.head_sha + "/" + comps.thisRun.name + "/" + comps.thisRun.id + "/" + comps.thisRun.run_attempt;
-// buildSite({
-// comparisons: comps, artifacts_base_url: "https://ci.in.ripley.cloud/logs/",
-// head_sha: comps.thisRun.head_sha,
-// //   // siteResultDir: "/experiment/jon/dev/fuzzing-build-site-action/site-deploy-dev",
-//   // site_base_url: "https://ci.in.ripley.cloud/logs/public/confetti-ram-test/",
-// site_base_url: "http://localhost:4444/",
-// siteResultDir: "/ci-logs/public/" + thisRunKey + "/site",
-// site_base_url: "https://ci.in.ripley.cloud/logs/public/" + thisRunKey + "/site/",
-// siteResultDir: "/experiment/jon/dev/fuzzing-build-site-action/site",
-// })
-// console.log("final results dir should be: \"/ci-logs/public/"+ thisRunKey+ "/site\"")
+const comps = JSON.parse(fs.readFileSync("comparisons.json", "utf-8"));
+const thisRunKey = comps.thisRun.repository.full_name + "/" +
+    comps.thisRun.head_sha + "/" + comps.thisRun.name + "/" + comps.thisRun.id + "/" + comps.thisRun.run_attempt;
+buildSite({
+    comparisons: comps, artifacts_base_url: "https://ci.in.ripley.cloud/logs/",
+    head_sha: comps.thisRun.head_sha,
+    //   // siteResultDir: "/experiment/jon/dev/fuzzing-build-site-action/site-deploy-dev",
+    // site_base_url: "https://ci.in.ripley.cloud/logs/public/confetti-ram-test/",
+    site_base_url: "http://localhost:4444/",
+    // siteResultDir: "/ci-logs/public/" + thisRunKey + "/site",
+    // site_base_url: "https://ci.in.ripley.cloud/logs/public/" + thisRunKey + "/site/",
+    siteResultDir: "/experiment/jon/dev/fuzzing-build-site-action/site",
+});
+console.log("final results dir should be: \"/ci-logs/public/" + thisRunKey + "/site\"");
 
 
 /***/ }),
