@@ -43,7 +43,8 @@ const io = __importStar(__nccwpck_require__(7436));
 const exec = __importStar(__nccwpck_require__(1514));
 let benchmarks;
 if (!core.getInput("benchmarks"))
-    benchmarks = 'ant,bcel,closure,maven,rhino'.split(",");
+    benchmarks = 'ant,bcel,closure,maven,rhino' //,chocopy,nashorn,pngj,tomcat'
+        .split(",");
 else
     benchmarks = core.getInput("benchmarks").split(",");
 function getPathToAritfacts(wfRun) {
@@ -116,11 +117,18 @@ function buildSite(params) {
             reportHeader += wfRunToMdDescription(comparisons.thisRun.head_branch || "?", comparisons.thisRun, true);
             dataDirs.push({ "name": head_sha.substring(0, 6), "isBaseline": true, "path": yield getPathToAritfacts(comparisons.thisRun) });
         }
+        let baselineBranch = undefined;
+        if (!includeHeadInResults || !head_sha) {
+            //We'll make the baseline be the first comparison branch
+            if (comparisons.byBranch.length > 0) {
+                baselineBranch = comparisons.byBranch[0].name;
+            }
+        }
         for (let branchRun of comparisons.byBranch) {
             for (let wfRun of branchRun.workflow_runs) {
                 if (yield haveResultsForWorkflowRun(wfRun)) {
                     reportHeader += wfRunToMdDescription(branchRun.name, wfRun);
-                    dataDirs.push({ "name": branchRun.name, "isBaseline": false, "path": yield getPathToAritfacts(wfRun) });
+                    dataDirs.push({ "name": branchRun.name, "isBaseline": baselineBranch === branchRun.name, "path": yield getPathToAritfacts(wfRun) });
                 }
             }
         }
@@ -226,20 +234,20 @@ exports.run = run;
 run();
 // // // DEV:
 // // const comps = JSON.parse(fs.readFileSync("comparisonsCONFETTI.json","utf-8")) as ComparisonsType;
-// const comps = JSON.parse(fs.readFileSync("comparisons.json", "utf-8")) as ComparisonsType;
-// const thisRunKey = comps.thisRun.repository.full_name + "/" +
-// comps.thisRun.head_sha + "/" + comps.thisRun.name + "/" + comps.thisRun.id + "/" + comps.thisRun.run_attempt;
-// buildSite({
-//   comparisons: comps, artifacts_base_url: "https://ci.in.ripley.cloud/logs/",
-//   head_sha: comps.thisRun.head_sha,
+//  const comps = JSON.parse(fs.readFileSync("comparisons.json", "utf-8")) as ComparisonsType;
+//  const thisRunKey = comps.thisRun.repository.full_name + "/" +
+//  comps.thisRun.head_sha + "/" + comps.thisRun.name + "/" + comps.thisRun.id + "/" + comps.thisRun.run_attempt;
+//  buildSite({
+//  comparisons: comps, artifacts_base_url: "https://ci.in.ripley.cloud/logs/",
+//  head_sha: comps.thisRun.head_sha,
 // //   // siteResultDir: "/experiment/jon/dev/fuzzing-build-site-action/site-deploy-dev",
 //   // site_base_url: "https://ci.in.ripley.cloud/logs/public/confetti-ram-test/",
-//   site_base_url: "http://localhost:4444/",
+//  site_base_url: "http://localhost:4444/",
 //   // siteResultDir: "/ci-logs/public/" + thisRunKey + "/site",
 //   // site_base_url: "https://ci.in.ripley.cloud/logs/public/" + thisRunKey + "/site/",
-//   siteResultDir: "/experiment/jon/dev/fuzzing-build-site-action/site",
-// })
-// console.log("final results dir should be: \"/ci-logs/public/"+ thisRunKey+ "/site\"")
+//  siteResultDir: "/experiment/jon/dev/fuzzing-build-site-action/site",
+//  })
+//  console.log("final results dir should be: \"/ci-logs/public/"+ thisRunKey+ "/site\"")
 
 
 /***/ }),
