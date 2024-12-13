@@ -36,12 +36,22 @@ Report archived: [%SITE_BASE_URL%](%SITE_BASE_URL%)
 %TARGET_PAGE_LINKS%
 
 # Overview
-```{r report-overview-setup, include=FALSE}
+```{r report-overview-setup, include=FALSE, message = FALSE}
 readMutationLog <- function(file, config){
-          read_csv(file, col_types=cols(.default="d"), col_names=c('thisLength','parentLength','distance','saved','parent','savedIndex','savedFile','commonProbes','currentProbes','parentProbes','totalProbes')) %>%
+          read_csv(file, 
+          col_types=cols(.default="n"),
+                col_names=c('thisLength','parentLength','distance','saved','parent','savedIndex','savedFile',
+                'commonProbes','currentProbes','parentProbes','totalProbes'),
+                show_col_types = FALSE) %>%
+                          mutate(textSimilarity=distance/ifelse(thisLength>parentLength,thisLength,parentLength)) %>%
+          summarise(textSimilarity=mean(textSimilarity),
+          equalInputRatio=sum(distance==0)/n(),
+          across(starts_with('commonProbes'), ~mean(commonProbes/totalProbes, na.rm=TRUE)),
+          ) %>%
+          ungroup()%>%
           add_column(filename = file, config=config) %>%
           extract(filename, into = c("path","filename","target"), regex = "(.*)/(([^/]*)_mutation.log_.*)") %>%
-          extract(filename, into = c("index"),".*_mutation.log_(\\d+)",remove=FALSE)
+          extract(filename, into = c("index"),".*_mutation.log_(\\d+)",remove=FALSE) %>% ungroup()
 
 }
 readExperimentMutationLogs <- function(dataDir) {
@@ -51,7 +61,7 @@ readExperimentMutationLogs <- function(dataDir) {
              pattern=paste0(.x,'_mutation.log_.*'), 
              full.names = TRUE)) %>% unlist()
         if(length(mutationLogs) == 0){
-                return(data.frame(config=dataDir$name, thisLength=NA, parentLength=NA, distance=NA, saved=NA, parent=NA, savedIndex=NA, savedFile=NA, commonProbes=NA, currentProbes=NA, parentProbes=NA, totalProbes=NA, filename=NA, path=NA, target=NA, index=NA, isBaseline=NA))
+                return(data.frame(config=dataDir$name, thisLength=NA, textSimilarity=NA, equalInputRatio=NA, commonProbes=NA, filename=NA, path=NA, target=NA, index=NA, isBaseline=NA))
         }
         return(mutationLogs %>%
         map_df(~readMutationLog(.,dataDir$name)) %>%
@@ -233,25 +243,16 @@ configCounts <- table(unlist(configHeaders))
 colnames(inputsTable) <- unlist(valHeaders)
 options(knitr.kable.NA = "")
 
-kable(inputsTable, format="html", booktabs=TRUE, digits=2, format.args = list(big.mark = ",",
+kable(inputsTable, format="html", escape=FALSE, booktabs=TRUE, digits=2, format.args = list(big.mark = ",",
                                                                         scientific = FALSE)) %>%
                                                                         add_header_above(unlist(configCounts)) 
 ``` 
 
 ## Similarity statistics
 ```{r similarity-stats, echo=FALSE, message=FALSE, results='asis'}
-inputSimilarity <- mutations %>% mutate(probeSimilarity=commonProbes/totalProbes,
-isSameInput = distance==0,
-textSimilarity = distance/max(thisLength,parentLength)
-) %>%
-    group_by(config,target,filename,isBaseline) %>%
-    summarise(probeSimilarity=mean(probeSimilarity),
-    equalInputRatio=sum(isSameInput)/n(),
-    textSimilarity=mean(textSimilarity) 
-    ) %>%
-    ungroup() %>%
+inputSimilarity <- mutations %>% 
+    rename(probeSimilarity=commonProbes)%>%
     pivot_longer(c("probeSimilarity","equalInputRatio","textSimilarity"), names_to = "metric", values_to = "value") 
-    # pivot_wider(names_from = config, values_from = probeSimilarity)
 
 baselineSimilarity <- inputSimilarity %>% filter(isBaseline) %>% select(target,metric,value) %>% group_by(target,metric) %>% summarise(mean_baseline=mean(value)) %>% ungroup()
 
@@ -306,7 +307,7 @@ colnames(similarityTable) <- unlist(valHeaders)
 options(knitr.kable.NA = "")
 
 
-kable(similarityTable, format="html", booktabs=TRUE, digits=2, format.args = list(big.mark = ",",
+kable(similarityTable, escape=FALSE, format="html", booktabs=TRUE, digits=2, format.args = list(big.mark = ",",
                                                                         scientific = FALSE)) %>%
                                                                         add_header_above(unlist(configCounts)) 
 
