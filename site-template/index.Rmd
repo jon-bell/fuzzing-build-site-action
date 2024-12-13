@@ -3,8 +3,9 @@ title: "Fuzzing Evaluation"
 params:
   benchmark: 'ant'
   artifactURL: "https://ci.in.ripley.cloud/logs"
-  dataDirs: '{"dataDirs": [{"path": "/ci-logs/public/jon-bell/JQF/c6e3b2417931d479104f59065da8ea85c7d07f31/Smoke test evaluation - 10 minutes, 5 trials/1604218427/2/artifacts", "name": "dummy-debug-ignore-this"}, {"name": "fast-collision-free-coverage", "path": "/ci-logs/public/jon-bell/JQF/cb70af65d5c0ac1a084c318c2b7260d6710d4ce9/Smoke test evaluation - 10 minutes, 5 trials/1607328380/1/artifacts"}, {"name": "reporting-ci", "path": "/ci-logs/public/jon-bell/JQF/8468ed5f28da5c3d79f85a1a0bcc8d8a8e7ccbd9/Smoke test evaluation - 10 minutes, 5 trials/1604384300/1/artifacts"}]}'
+  dataDirs: '%DATA_DIRS%'
   baseDir: "/ci-logs/"
+always_allow_html: true
 ---
 ```{r st1, include=FALSE}
 knitr::opts_knit$set(base.url="%SITE_BASE_URL%")
@@ -29,3 +30,287 @@ Report generated: %GENERATED_TIME% using [jon-bell/fuzzing-build-site-action@mai
 Report archived: [%SITE_BASE_URL%](%SITE_BASE_URL%)
 
 %CONFIGS_LISTING%
+
+## Per-target statistics
+
+%TARGET_PAGE_LINKS%
+
+# Overview
+```{r report-overview-setup, include=FALSE}
+readMutationLog <- function(file, config){
+          read_csv(file, col_types=cols(.default="d"), col_names=c('thisLength','parentLength','distance','saved','parent','savedIndex','savedFile','commonProbes','currentProbes','parentProbes','totalProbes')) %>%
+          add_column(filename = file, config=config) %>%
+          extract(filename, into = c("path","filename","target"), regex = "(.*)/(([^/]*)_mutation.log_.*)") %>%
+          extract(filename, into = c("index"),".*_mutation.log_(\\d+)",remove=FALSE)
+
+}
+readExperimentMutationLogs <- function(dataDir) {
+        benchmarks <- c('ant','maven','closure','rhino')
+        # for each benchmark, read the mutation logs
+        mutationLogs <- dat <- map(benchmarks, ~list.files(path=dataDir$path, recursive = F,
+             pattern=paste0(.x,'_mutation.log_.*'), 
+             full.names = TRUE)) %>% unlist()
+        if(length(mutationLogs) == 0){
+                return(data.frame(config=dataDir$name, thisLength=NA, parentLength=NA, distance=NA, saved=NA, parent=NA, savedIndex=NA, savedFile=NA, commonProbes=NA, currentProbes=NA, parentProbes=NA, totalProbes=NA, filename=NA, path=NA, target=NA, index=NA, isBaseline=NA))
+        }
+        return(mutationLogs %>%
+        map_df(~readMutationLog(.,dataDir$name)) %>%
+        mutate(isBaseline=dataDir$isBaseline)%>%
+        complete(config, filename) %>%
+        fill(names(.)))
+}
+configs <- fromJSON(params$dataDirs)
+mutations <- map_dfr(configs, readExperimentMutationLogs)
+
+readSingleJaCoCo <- function(filename){
+  as.data.frame(fromJSON(file=filename)) %>% add_column(source=filename)
+}
+readJaCoCo <- function(dataDir){
+  
+  jacocoFiles <- Sys.glob(file.path(dataDir$path,"*_jacoco_summary.json"))
+  
+  # if jsonFiles is a vector, read them all in, else return default
+  if(length(jacocoFiles) > 0){
+    jacocoData <- map(jacocoFiles, readSingleJaCoCo) %>% map_dfr(~mutate(.x,config=dataDir$name,isBaseline=dataDir$isBaseline))
+  } else {
+    jacocoData <- data.frame(config=c(dataDir$name),branchesCovered=c(NA),branchesTotal=c(NA),source=c(NA), isBaseline=c(dataDir$isBaseline))
+  }
+  jacocoData
+}
+jacoco <- map_dfr(configs, readJaCoCo)%>% #mutate(idx = str_match(source, pattern="_(\\d+)_jacoco_summary.json")[,2])
+extract(source, into = c("source","target","idx"), regex = "(.*/([^_]+)_([^_]+)_jacoco_summary.json)")
+
+jacocoPValuesVsBaseline <- function(conf){
+    jacoco %>%
+    filter(config == conf | isBaseline) %>%
+    filter(length(unique(unlist(config))) == 2) %>%
+    mutate(config=as.factor(as.character(config)))%>%
+    group_by(target) %>%
+    do(p=wilcox.test(branchesCovered~config, data=., exact=FALSE)$p.value,
+    vda=VD.A(formula=branchesCovered~config, data=.)$estimate)%>%
+    summarise(p=p, vda=vda, target=target) %>%
+    mutate(config=conf)
+}
+jacocoStats <- lapply(jacoco%>%filter(!isBaseline & !is.na(branchesCovered))%>%distinct(config)%>%pull(config), jacocoPValuesVsBaseline) %>% bind_rows() %>% as.data.frame()
+if(nrow(jacocoStats) == 0){
+    jacocoStats <- data.frame(config=NA, p=NA, vda=NA)
+}
+jacocoStats <- jacoco %>% group_by(config,target,isBaseline)%>%
+    summarise(
+        branchesTotal=mean(branchesTotal),
+        branchesCovered=mean(branchesCovered),
+    # sdBranchesCovered=sd(branchesCovered)
+        ) %>%
+        ungroup()%>%
+        as.data.frame()%>%
+         left_join(jacocoStats, by=c("config","target"))
+
+# Input stats
+readResultFile <- function(file, config) {
+  read_csv(file, col_types=cols(.default="d")) %>%
+          add_column(filename = file, config=config) %>%
+          extract(filename, into = c("path","filename"), regex = "(.*)/([^/]*_plot_data.*)") %>%
+          extract(filename, into = c("target","index"),"(.*)_plot_data_(\\d+)",remove=FALSE)%>%
+          mutate(
+                  campaignSecs = `# unix_time` - min(`# unix_time`))
+}
+
+
+readExperimentResults <- function(dataDir) {
+  dat <- list.files(path=dataDir$path, recursive = F,
+             pattern='*_plot_data_*',
+             full.names = TRUE) %>%
+        map_df(~readResultFile(.,dataDir$name)) %>%
+        mutate(campaignMins = floor(campaignSecs / 60)) %>%
+        complete(config, filename, campaignMins) %>%
+        fill(names(.)) %>%
+        group_by(campaignMins, config,target, path, filename, index) %>%
+        summarise(across(everything(), last))  %>%
+        mutate(total_inputs=invalid_inputs+valid_inputs, isBaseline=dataDir$isBaseline)
+   if(!("b1" %in% colnames(dat))){
+           dat <- dat %>% mutate(b0 = NA, b1 = NA, b2 = NA)
+   }
+   if("all_covered_probes" %in% colnames(dat)){
+           dat %>% mutate(cov = all_covered_probes)
+   }
+   else if("all_cov" %in% colnames(dat)){
+           dat %>% mutate(cov=all_cov)
+   }
+   else {
+           dat %>% mutate(cov = NA)
+   }
+}
+
+plotData <- map_dfr(configs, readExperimentResults)
+```
+
+## Branch coverage
+```{r branch-coverage, echo=FALSE, message=FALSE, results='asis'}
+baselineCoverage <- jacocoStats %>%filter(isBaseline)%>%select(target,branchesCovered)
+
+jacocoTable <- jacocoStats %>% select(-c('isBaseline','branchesTotal'))%>%
+    mutate(p=round(p,3), vda=round(vda,3), branches=round(branchesCovered, 0))%>%
+    select(-branchesCovered)%>%
+    inner_join(baselineCoverage, by='target')%>%
+    mutate(branches = case_when(
+        is.na(p)~format(branches, big.mark = ","),
+    branches > branchesCovered & p <= 0.01 ~ sprintf("<span style='color: green; font-weight:bold;'>%s</span>", format(branches, big.mark = ",")),
+branches > branchesCovered ~ sprintf("<span style=''>%s</span>", format(branches, big.mark = ",")),
+branches < branchesCovered & p <= 0.01 ~ sprintf("<span style='color: red; font-weight: bold'>%s</span>", format(branches, big.mark = ",")),
+branches < branchesCovered ~ sprintf("<span style=''>%s</span>", format(branches, big.mark = ",")),
+TRUE~paste0(branches)
+    )) %>% select(-branchesCovered)%>%
+     pivot_wider(names_from = config, values_from = c(branches,p,vda), names_vary='slowest') 
+
+
+# add a header row that extracts the config from the metric
+configHeaders <- lapply(names(jacocoTable), function(name) {
+    if (!str_count(name, "_")) " " else str_match(name, "[^_]+_([^_]+)$")[, 2]
+})
+valHeaders <- lapply(names(jacocoTable), function(name) {
+    if (!str_count(name, "_")) name else str_match(name, "([^_]+)_[^_]+$")[, 2]
+})
+configCounts <- table(unlist(configHeaders))
+colnames(jacocoTable) <- unlist(valHeaders)
+options(knitr.kable.NA = "")
+kable(jacocoTable, format="html", escape=FALSE, booktabs=TRUE, format.args = list(big.mark = ",",
+                                                                        scientific = FALSE)) %>%
+                                                                        add_header_above(unlist(configCounts)) 
+```
+
+## Total inputs
+```{r total-inputs, echo=FALSE, message=FALSE, results='asis'}
+inputCounts <- plotData %>% group_by(config,target,index,isBaseline) %>% summarise(total_inputs=max(total_inputs), validPercent=max(valid_inputs)/max(total_inputs)) %>%
+pivot_longer(total_inputs:validPercent, names_to = "metric", values_to = "value")
+
+baselineInputCounts <- inputCounts %>%
+    filter(isBaseline) %>% select(-isBaseline) %>% 
+    group_by(target, metric) %>% summarise(mean_baseline=mean(value)) %>% ungroup()
+
+inputCountspValuesVsBaseline <- function(conf){
+    inputCounts %>%
+    filter(config == conf | isBaseline) %>%
+    filter(!is.na(value))%>%
+    group_by(metric, target) %>%
+    mutate(len = length(unique(unlist(config)))) %>%
+    filter(length(unique(unlist(config))) == 2) %>%
+    do(p=wilcox.test(value~config, data=., exact=FALSE)$p.value,
+    vda=VD.A(formula=value~config, data=.)$estimate)%>%
+    summarise(p=p, vda=vda,metric=metric,target=target) %>%
+    mutate(config=conf)
+}
+inputCountPValues <- lapply(inputCounts%>%
+                            filter(!isBaseline & !is.na(value))%>%
+                            group_by(config)%>%
+                            select(config) %>%
+                            distinct(config) %>%
+                            pull(config),
+                            inputCountspValuesVsBaseline) %>% bind_rows() %>% as.data.frame()
+inputCountMeans <- inputCounts %>% group_by(config,target, metric) %>% summarise(mean=mean(value))
+inputsTable <- inputCountMeans %>%
+    left_join(inputCountPValues, by=c('metric','target','config')) %>%
+    inner_join(baselineInputCounts, by=c('target','metric')) %>%
+        mutate(
+            mean=case_when(metric == 'validPercent'~round(mean,2),
+            TRUE~round(mean,0)),
+            mean = case_when(
+        is.na(p)~format(mean, big.mark = ","),
+    mean > mean_baseline & p <= 0.01 ~ sprintf("<span style='color: green; font-weight:bold;'>%s</span>", format(mean, big.mark = ",")),
+mean < mean_baseline & p <= 0.01 ~ sprintf("<span style='color: red; font-weight: bold'>%s</span>", format(mean, big.mark = ",")),
+TRUE~format(mean, big.mark = ",") 
+    )) %>% select(-mean_baseline)%>%
+     pivot_wider(names_from = config, values_from = c(mean,p,vda), names_vary='slowest') %>%
+     arrange(metric,target)
+# inputsTable
+# add a header row that extracts the config from the metric
+configHeaders <- lapply(names(inputsTable), function(name) {
+    if (!str_count(name, "_")) " " else str_match(name, "[^_]+_([^_]+)$")[, 2]
+})
+valHeaders <- lapply(names(inputsTable), function(name) {
+    if (!str_count(name, "_")) name else str_match(name, "([^_]+)_[^_]+$")[, 2]
+})
+configCounts <- table(unlist(configHeaders))
+colnames(inputsTable) <- unlist(valHeaders)
+options(knitr.kable.NA = "")
+
+kable(inputsTable, format="html", booktabs=TRUE, digits=2, format.args = list(big.mark = ",",
+                                                                        scientific = FALSE)) %>%
+                                                                        add_header_above(unlist(configCounts)) 
+``` 
+
+## Similarity statistics
+```{r similarity-stats, echo=FALSE, message=FALSE, results='asis'}
+inputSimilarity <- mutations %>% mutate(probeSimilarity=commonProbes/totalProbes,
+isSameInput = distance==0,
+textSimilarity = distance/max(thisLength,parentLength)
+) %>%
+    group_by(config,target,filename,isBaseline) %>%
+    summarise(probeSimilarity=mean(probeSimilarity),
+    equalInputRatio=sum(isSameInput)/n(),
+    textSimilarity=mean(textSimilarity) 
+    ) %>%
+    ungroup() %>%
+    pivot_longer(c("probeSimilarity","equalInputRatio","textSimilarity"), names_to = "metric", values_to = "value") 
+    # pivot_wider(names_from = config, values_from = probeSimilarity)
+
+baselineSimilarity <- inputSimilarity %>% filter(isBaseline) %>% select(target,metric,value) %>% group_by(target,metric) %>% summarise(mean_baseline=mean(value)) %>% ungroup()
+
+inputSimilaritypValuesVsBaseline <- function(conf){
+    inputSimilarity %>%
+    filter(config == conf | isBaseline) %>%
+    filter(!is.na(value))%>%
+    group_by(metric, target) %>%
+    mutate(len = length(unique(unlist(config)))) %>%
+    filter(length(unique(unlist(config))) == 2) %>%
+    do(p=wilcox.test(value~config, data=., exact=FALSE)$p.value,
+    vda=VD.A(formula=value~config, data=.)$estimate)%>%
+    summarise(p=p, vda=vda,metric=metric,target=target) %>%
+    mutate(config=conf)
+}
+
+similarityStats <- lapply(inputSimilarity%>%
+                            filter(!isBaseline & !is.na(value))%>%
+                            distinct(config) %>%
+                            pull(config),
+                            inputSimilaritypValuesVsBaseline) %>% bind_rows() %>% as.data.frame()
+similarityMeans <- inputSimilarity %>% group_by(config,target, metric) %>% summarise(mean=mean(value)) 
+
+# if similarityStats is empty, create a dummy row
+if(nrow(similarityStats) == 0){
+    similarityStats <- data.frame(config=NA, p=NA, vda=NA, metric=NA,target=NA,config=NA)
+}
+
+
+similarityTable <- similarityMeans %>%
+    left_join(similarityStats, by=c('metric','target','config')) %>%
+    inner_join(baselineSimilarity, by=c('target','metric'))%>%
+    mutate(
+        mean=case_when(
+            mean < mean_baseline & p <= 0.01 ~ sprintf("<span style='color: red; font-weight: bold'>%.2f</span>", mean),
+            mean > mean_baseline & p <= 0.01 ~ sprintf("<span style='color: green; font-weight:bold;'>%.2f</span>", mean),
+            TRUE~sprintf("%.2f", mean)
+        )
+    ) %>%select(-mean_baseline)%>%
+     pivot_wider(names_from = config, values_from = c(mean,p,vda), names_vary='slowest') %>%
+     arrange(metric,target)
+
+# add a header row that extracts the config from the metric
+configHeaders <- lapply(names(similarityTable), function(name) {
+    if (!str_count(name, "_")) " " else str_match(name, "[^_]+_([^_]+)$")[, 2]
+})
+valHeaders <- lapply(names(similarityTable), function(name) {
+    if (!str_count(name, "_")) name else str_match(name, "([^_]+)_[^_]+$")[, 2]
+})
+configCounts <- table(unlist(configHeaders))
+colnames(similarityTable) <- unlist(valHeaders)
+options(knitr.kable.NA = "")
+
+
+kable(similarityTable, format="html", booktabs=TRUE, digits=2, format.args = list(big.mark = ",",
+                                                                        scientific = FALSE)) %>%
+                                                                        add_header_above(unlist(configCounts)) 
+
+# similarityTable %>%
+# kable(., format="simple", booktabs=TRUE, digits=2, format.args = list(big.mark = ",",
+                                                                        # scientific = FALSE))
+```

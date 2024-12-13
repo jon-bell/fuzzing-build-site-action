@@ -140,7 +140,7 @@ function buildSite(params) {
         //Generate the report by repeatedly including the template
         let reportString = fs.readFileSync("site_build/index.Rmd", "utf-8");
         let templateString = fs.readFileSync("site_build/template.Rmd", "utf-8");
-        const firstBlockEnd = templateString.indexOf("```", templateString.indexOf("```") + 3);
+        const firstBlockEnd = templateString.indexOf("---", templateString.indexOf("---") + 3);
         templateString = templateString.substring(5 + firstBlockEnd).replace(/\%SITE_BASE_URL\%/g, params.site_base_url);
         let templateMemoryString = fs.readFileSync("site_build/template_memoryprofile.Rmd", "utf-8");
         const firstBlockEndMemory = templateMemoryString.indexOf("```", templateMemoryString.indexOf("```") + 3);
@@ -150,19 +150,40 @@ function buildSite(params) {
             .replace(/\%EVALUATION_NAME\%/g, workflowName)
             .replace(/\%CONFIGS_LISTING\%/g, reportHeader)
             .replace(/\%SITE_BASE_URL\%/g, params.site_base_url)
+            .replace(/\%ARTIFACTS_BASE_URL\%/g, params.artifacts_base_url)
+            .replace(/\%DATA_DIRS\%/g, JSON.stringify(dataDirs));
+        // .replace(/\%REPORT_ACTION_NAME\%/g, "jon-bell/fuzzing-build-site-action")
+        templateString = templateString
+            .replace(/\%GENERATED_TIME\%/g, new Date().toISOString())
+            .replace(/\%EVALUATION_NAME\%/g, workflowName)
+            .replace(/\%CONFIGS_LISTING\%/g, reportHeader)
+            .replace(/\%SITE_BASE_URL\%/g, params.site_base_url)
             .replace(/\%ARTIFACTS_BASE_URL\%/g, params.artifacts_base_url);
         // .replace(/\%REPORT_ACTION_NAME\%/g, "jon-bell/fuzzing-build-site-action")
+        let TARGET_PAGE_LINKS = "";
         for (let bm of benchmarks) {
             bm = bm.trim();
-            reportString += '---\n\n```{r ' + bm + '-configuration-gen, include=FALSE}\n';
-            reportString += 'localParams=list(dataDirs=\'' + JSON.stringify({ "dataDirs": dataDirs }) + '\',  baseDir="/ci-logs/", artifactURL="https://ci.in.ripley.cloud/logs", benchmark="' + bm + '")\n\n';
-            reportString += '```\n\n';
-            reportString += '\n' + templateString.replace(/\%TARGET\%/g, bm).replace(/params\$/g, "localParams$") + '\n';
+            // Create a new file for each benchmark
+            let bmReportString = `---
+title: "${bm} Evaluation Report"
+params:
+    benchmark: "${bm}"
+    artifactURL: "https://ci.in.ripley.cloud/logs"
+    baseDir: "/ci-logs/"
+`;
+            bmReportString += '---\n\n```{r ' + bm + '-configuration-gen, include=FALSE}\n';
+            bmReportString += 'localParams=list(dataDirs=\'' + JSON.stringify({ "dataDirs": dataDirs }) + '\',  baseDir="/ci-logs/", artifactURL="https://ci.in.ripley.cloud/logs", benchmark="' + bm + '")\n\n';
+            bmReportString += '```\n\n';
+            bmReportString += '\n' + templateString.replace(/\%TARGET\%/g, bm).replace(/params\$/g, "localParams$") + '\n';
             if (process.env.PROFILE_HEAP && process.env.PROFILE_HEAP.toLowerCase() == "true") {
-                reportString += '\n';
-                reportString += '\n' + templateMemoryString.replace(/\%TARGET\%/g, bm).replace(/params\$/g, "localParams$") + '\n';
+                bmReportString += '\n';
+                bmReportString += '\n' + templateMemoryString.replace(/\%TARGET\%/g, bm).replace(/params\$/g, "localParams$") + '\n';
             }
+            // fs.writeFileSync("site_build/" + bm + ".Rmd", bmReportString);
+            // Adds a link to the benchmark in the main report
+            TARGET_PAGE_LINKS += "* [" + bm + "](./" + bm + ".html)\n";
         }
+        reportString = reportString.replace(/\%TARGET_PAGE_LINKS\%/g, TARGET_PAGE_LINKS);
         fs.writeFileSync("site_build/index.Rmd", reportString);
         yield io.rmRF("site_build/template.Rmd");
         yield io.rmRF("site_build/template_memoryprofile.Rmd");
@@ -171,7 +192,7 @@ function buildSite(params) {
             yield exec.exec('R -e "rmarkdown::render_site()"', [], { cwd: "site_build" });
             yield io.cp("site_build/_site", params.siteResultDir, { recursive: true, force: true });
             return {
-                body: fs.readFileSync("site_build/_site/index.md", "utf-8"),
+                body: `View the report at [${params.site_base_url}](${params.site_base_url})`,
                 summary: "Summary tbd"
             };
         }
@@ -234,20 +255,20 @@ exports.run = run;
 run();
 // // // DEV:
 // // const comps = JSON.parse(fs.readFileSync("comparisonsCONFETTI.json","utf-8")) as ComparisonsType;
-//  const comps = JSON.parse(fs.readFileSync("comparisons.json", "utf-8")) as ComparisonsType;
-//  const thisRunKey = comps.thisRun.repository.full_name + "/" +
-//  comps.thisRun.head_sha + "/" + comps.thisRun.name + "/" + comps.thisRun.id + "/" + comps.thisRun.run_attempt;
-//  buildSite({
-//  comparisons: comps, artifacts_base_url: "https://ci.in.ripley.cloud/logs/",
-//  head_sha: comps.thisRun.head_sha,
-// //   // siteResultDir: "/experiment/jon/dev/fuzzing-build-site-action/site-deploy-dev",
-//   // site_base_url: "https://ci.in.ripley.cloud/logs/public/confetti-ram-test/",
-//  site_base_url: "http://localhost:4444/",
-//   // siteResultDir: "/ci-logs/public/" + thisRunKey + "/site",
-//   // site_base_url: "https://ci.in.ripley.cloud/logs/public/" + thisRunKey + "/site/",
-//  siteResultDir: "/experiment/jon/dev/fuzzing-build-site-action/site",
-//  })
-//  console.log("final results dir should be: \"/ci-logs/public/"+ thisRunKey+ "/site\"")
+const comps = JSON.parse(fs.readFileSync("comparisons.json", "utf-8"));
+const thisRunKey = comps.thisRun.repository.full_name + "/" +
+    comps.thisRun.head_sha + "/" + comps.thisRun.name + "/" + comps.thisRun.id + "/" + comps.thisRun.run_attempt;
+buildSite({
+    comparisons: comps, artifacts_base_url: "https://ci.in.ripley.cloud/logs/",
+    head_sha: comps.thisRun.head_sha,
+    //   // siteResultDir: "/experiment/jon/dev/fuzzing-build-site-action/site-deploy-dev",
+    // site_base_url: "https://ci.in.ripley.cloud/logs/public/confetti-ram-test/",
+    site_base_url: "http://localhost:4444/",
+    // siteResultDir: "/ci-logs/public/" + thisRunKey + "/site",
+    // site_base_url: "https://ci.in.ripley.cloud/logs/public/" + thisRunKey + "/site/",
+    siteResultDir: "/experiment/jon/dev/fuzzing-build-site-action/site",
+});
+console.log("final results dir should be: \"/ci-logs/public/" + thisRunKey + "/site\"");
 
 
 /***/ }),

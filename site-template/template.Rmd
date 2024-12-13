@@ -21,6 +21,7 @@ library(knitr)
 library(rjson)
 library(kableExtra)
 library(effsize)
+ARTIFACTS_BASE_URL="%ARTIFACTS_BASE_URL%"
 ```
 
 # %TARGET%
