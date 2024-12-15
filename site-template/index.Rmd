@@ -57,9 +57,10 @@ readMutationLog <- function(file, config){
 readExperimentMutationLogs <- function(dataDir) {
         benchmarks <- c('ant','maven','closure','rhino')
         # for each benchmark, read the mutation logs
-        mutationLogs <- dat <- map(benchmarks, ~list.files(path=dataDir$path, recursive = F,
+        mutationLogs <- dat <- map(benchmarks, ~(file.info(list.files(path=dataDir$path, recursive = F,
              pattern=paste0(.x,'_mutation.log_.*'), 
-             full.names = TRUE)) %>% unlist()
+             full.names = TRUE)) %>% filter(size > 0) %>% rownames())) %>% unlist()
+
         if(length(mutationLogs) == 0){
                 return(data.frame(config=dataDir$name, thisLength=NA, textSimilarity=NA, equalInputRatio=NA, commonProbes=NA, filename=NA, path=NA, target=NA, index=NA, isBaseline=NA))
         }
@@ -93,9 +94,9 @@ extract(source, into = c("source","target","idx"), regex = "(.*/([^_]+)_([^_]+)_
 jacocoPValuesVsBaseline <- function(conf){
     jacoco %>%
     filter(config == conf | isBaseline) %>%
-    filter(length(unique(unlist(config))) == 2) %>%
     mutate(config=as.factor(as.character(config)))%>%
     group_by(target) %>%
+    filter(length(unique(unlist(config))) == 2) %>%
     do(p=wilcox.test(branchesCovered~config, data=., exact=FALSE)$p.value,
     vda=VD.A(formula=branchesCovered~config, data=.)$estimate)%>%
     summarise(p=p, vda=vda, target=target) %>%
@@ -117,7 +118,12 @@ jacocoStats <- jacoco %>% group_by(config,target,isBaseline)%>%
 
 # Input stats
 readResultFile <- function(file, config) {
-  read_csv(file, col_types=cols(.default="d")) %>%
+      nL <- R.utils::countLines(file)
+  header <- as.vector(t(read.csv(file, header=FALSE, colClasses='character', nrows=1)))
+  # trim whitespace from header
+  header <- gsub("^\\s+|\\s+$", "", header)
+
+  read_csv(file, col_names=header, col_types=cols(.default="d"), skip = nL-4) %>%
           add_column(filename = file, config=config) %>%
           extract(filename, into = c("path","filename"), regex = "(.*)/([^/]*_plot_data.*)") %>%
           extract(filename, into = c("target","index"),"(.*)_plot_data_(\\d+)",remove=FALSE)%>%

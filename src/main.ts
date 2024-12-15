@@ -165,7 +165,7 @@ params:
       bmReportString += '\n'
       bmReportString += '\n' + templateMemoryString.replace(/\%TARGET\%/g, bm).replace(/params\$/g, "localParams$") + '\n'
     }
-    // fs.writeFileSync("site_build/" + bm + ".Rmd", bmReportString);
+    fs.writeFileSync("site_build/" + bm + ".Rmd", bmReportString);
     // Adds a link to the benchmark in the main report
     TARGET_PAGE_LINKS += "* [" + bm + "](./" + bm + ".html)\n"
   }
@@ -250,7 +250,7 @@ export async function run(): Promise<void> {
 run()
 
 // // // DEV:
-// // const comps = JSON.parse(fs.readFileSync("comparisonsCONFETTI.json","utf-8")) as ComparisonsType;
+// const comps = JSON.parse(fs.readFileSync("comparisonsCONFETTI.json","utf-8")) as ComparisonsType;
 //  const comps = JSON.parse(fs.readFileSync("comparisons.json", "utf-8")) as ComparisonsType;
 //  const thisRunKey = comps.thisRun.repository.full_name + "/" +
 //  comps.thisRun.head_sha + "/" + comps.thisRun.name + "/" + comps.thisRun.id + "/" + comps.thisRun.run_attempt;
