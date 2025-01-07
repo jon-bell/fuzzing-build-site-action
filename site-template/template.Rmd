@@ -110,7 +110,7 @@ jacocoStats <- lapply(jacoco%>%
          bind_rows() %>% as.data.frame()
 
 if(nrow(jacocoStats) == 0){
-    jacocoStats <- data.frame(config=NA, p=NA, vda=NA)
+    jacocoStats <- data.frame(config=NA, p=NA, vda=NA, target=NA)
 }
 
 jacocoStats <- jacoco %>% group_by(config,isBaseline)%>%
